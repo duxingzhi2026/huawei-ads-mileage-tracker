@@ -31,4 +31,4 @@ jobs:
           git commit -m "update mileage data" || echo "no changes"
           git pull --rebase origin main
           git push origin HEAD:main
-          git add data.csv debug.png
+          git add data.csv debug.png || true
