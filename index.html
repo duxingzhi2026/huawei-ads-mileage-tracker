@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>华为乾崑辅助驾驶里程追踪</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5"></script>
+</head>
+<body>
+  <h2>华为乾崑辅助驾驶里程追踪</h2>
+  <div id="chart" style="width:100%;height:500px;"></div>
+
+  <script>
+    async function main() {
+      const res = await fetch("data.csv");
+      const text = await res.text();
+      const rows = text.trim().split("\n").slice(1).map(r => r.split(","));
+
+      const dates = rows.map(r => r[0]);
+      const dailyAssist = rows.map(r => Number(r[3]));
+      const dailyDrive = rows.map(r => Number(r[4]));
+      const ratio = rows.map(r => Number(r[5]) * 100);
+
+      const chart = echarts.init(document.getElementById("chart"));
+      chart.setOption({
+        tooltip: { trigger: "axis" },
+        legend: { data: ["每日辅助驾驶里程", "每日总里程", "辅助驾驶占比%"] },
+        xAxis: { type: "category", data: dates },
+        yAxis: [
+          { type: "value", name: "里程" },
+          { type: "value", name: "占比%" }
+        ],
+        series: [
+          { name: "每日辅助驾驶里程", type: "line", data: dailyAssist },
+          { name: "每日总里程", type: "line", data: dailyDrive },
+          { name: "辅助驾驶占比%", type: "line", yAxisIndex: 1, data: ratio }
+        ]
+      });
+    }
+    main();
+  </script>
+</body>
+</html>
