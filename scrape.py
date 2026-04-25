@@ -26,25 +26,42 @@ def parse_number(text):
 
 
 def scrape_real_data():
+    from playwright.sync_api import sync_playwright
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
+
         page = browser.new_page(
             locale="zh-CN",
-            viewport={"width": 1440, "height": 2000}
+            viewport={"width": 1600, "height": 2200}
         )
 
         page.goto(URL, wait_until="domcontentloaded", timeout=120000)
-        page.wait_for_timeout(15000)
+        page.wait_for_timeout(12000)
 
-        page.screenshot(path="debug.png", full_page=True)
+        # 找所有数字轮子当前高亮数字
+        nums = page.locator(".odometer-digit .active, .num-item.active").all_inner_texts()
 
-        text = page.locator("body").inner_text()
-        print(text[:5000])
+        print("读取到数字位：", nums)
 
         browser.close()
 
-    raise ValueError("已保存 debug.png，请先查看截图确认数字是否显示")
+    # 拼接数字
+    digits = "".join([x.strip() for x in nums if x.strip().isdigit()])
 
+    if len(digits) < 10:
+        raise ValueError("数字位读取失败")
+
+    # 前半段辅助驾驶，后半段总里程（后续可微调）
+    mid = len(digits) // 2
+
+    assist_total = int(digits[:mid])
+    drive_total = int(digits[mid:])
+
+    if assist_total > drive_total:
+        assist_total, drive_total = drive_total, assist_total
+
+    return assist_total, drive_total
 
 def main():
     today = str(date.today())
