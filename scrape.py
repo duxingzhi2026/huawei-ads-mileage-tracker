@@ -28,40 +28,22 @@ def parse_number(text):
 def scrape_real_data():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page(locale="zh-CN")
+        page = browser.new_page(
+            locale="zh-CN",
+            viewport={"width": 1440, "height": 2000}
+        )
 
         page.goto(URL, wait_until="domcontentloaded", timeout=120000)
-        page.wait_for_timeout(8000)
+        page.wait_for_timeout(15000)
+
+        page.screenshot(path="debug.png", full_page=True)
 
         text = page.locator("body").inner_text()
+        print(text[:5000])
 
         browser.close()
 
-    print(text[:5000])
-
-    import re
-
-    # 找所有大数字（至少5位）
-    nums = re.findall(r'[\d,]{5,}', text)
-
-    nums = [int(x.replace(",", "")) for x in nums]
-
-    nums = sorted(set(nums), reverse=True)
-
-    print("网页中的大数字：", nums[:20])
-
-    if len(nums) < 2:
-        raise ValueError("页面没有找到足够大的数字")
-
-    # 最大两个通常就是总里程和辅助驾驶里程
-    drive_total = nums[0]
-    assist_total = nums[1]
-
-    # 保证总里程大于辅助驾驶里程
-    if assist_total > drive_total:
-        assist_total, drive_total = drive_total, assist_total
-
-    return assist_total, drive_total
+    raise ValueError("已保存 debug.png，请先查看截图确认数字是否显示")
 
 
 def main():
