@@ -93,8 +93,15 @@ def main():
 
     new_row = {
         "date": today,
+
+        # 原始抓取值（网页展示用）
+        "grab_assist_total": assist_total,
+        "grab_drive_total": drive_total,
+
+        # 正式统计字段
         "assist_total": assist_total,
         "drive_total": drive_total,
+
         "daily_assist": daily_assist,
         "daily_drive": daily_drive,
         "ratio": ratio
