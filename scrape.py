@@ -29,37 +29,37 @@ def scrape_real_data():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page(locale="zh-CN")
+
         page.goto(URL, wait_until="domcontentloaded", timeout=120000)
-        page.wait_for_timeout(10000)
+        page.wait_for_timeout(8000)
 
         text = page.locator("body").inner_text()
+
         browser.close()
 
-    # 先打印网页文字，方便你第一次核对
-    print(text[:2000])
+    print(text[:5000])
 
-    assist_total = None
-    drive_total = None
+    import re
 
-    lines = [x.strip() for x in text.splitlines() if x.strip()]
+    # 找所有大数字（至少5位）
+    nums = re.findall(r'[\d,]{5,}', text)
 
-    for i, line in enumerate(lines):
-        if "累计辅助驾驶里程" in line:
-            for j in range(i, min(i + 6, len(lines))):
-                n = parse_number(lines[j])
-                if n:
-                    assist_total = n
-                    break
+    nums = [int(x.replace(",", "")) for x in nums]
 
-        if "累计行驶总里程" in line or "累计总里程" in line:
-            for j in range(i, min(i + 6, len(lines))):
-                n = parse_number(lines[j])
-                if n:
-                    drive_total = n
-                    break
+    nums = sorted(set(nums), reverse=True)
 
-    if assist_total is None or drive_total is None:
-        raise ValueError("没有成功识别两个里程数，请查看日志里的网页文字。")
+    print("网页中的大数字：", nums[:20])
+
+    if len(nums) < 2:
+        raise ValueError("页面没有找到足够大的数字")
+
+    # 最大两个通常就是总里程和辅助驾驶里程
+    drive_total = nums[0]
+    assist_total = nums[1]
+
+    # 保证总里程大于辅助驾驶里程
+    if assist_total > drive_total:
+        assist_total, drive_total = drive_total, assist_total
 
     return assist_total, drive_total
 
