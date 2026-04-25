@@ -1,79 +1,465 @@
 <!doctype html>
-<html>
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <title>华为乾崑辅助驾驶里程追踪</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>华为乾崑智驾数据中心</title>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: radial-gradient(circle at top, #111827 0%, #05070a 45%, #000 100%);
+      color: #f5f7fa;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+    }
+
+    h1 {
+      font-size: 34px;
+      margin: 0 0 8px;
+      letter-spacing: 0.5px;
+    }
+
+    .sub {
+      color: #9aa4b2;
+      margin-bottom: 24px;
+      font-size: 15px;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(17, 24, 39, 0.96), rgba(8, 12, 18, 0.96));
+      border: 1px solid #1f2937;
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.35);
+    }
+
+    .card-title {
+      color: #aab4c3;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    .card-value {
+      color: #2f80ff;
+      font-size: 30px;
+      font-weight: 750;
+      line-height: 1.2;
+      word-break: break-word;
+    }
+
+    .card-small {
+      color: #8f99aa;
+      margin-top: 6px;
+      font-size: 13px;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 12px;
+      gap: 8px;
+    }
+
+    .toolbar button {
+      background: #111827;
+      color: #dbeafe;
+      border: 1px solid #334155;
+      padding: 8px 18px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .toolbar button.active {
+      background: #2563eb;
+      border-color: #3b82f6;
+      color: white;
+    }
+
+    .chart-box {
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(7, 11, 17, 0.96));
+      border: 1px solid #1f2937;
+      border-radius: 20px;
+      padding: 18px;
+      margin-bottom: 22px;
+      box-shadow: 0 0 35px rgba(0, 0, 0, 0.35);
+    }
+
+    #barChart,
+    #lineChart {
+      width: 100%;
+      height: 420px;
+    }
+
+    .footer {
+      color: #6b7280;
+      text-align: center;
+      margin-top: 24px;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
+    @media (max-width: 1100px) {
+      .cards {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (max-width: 800px) {
+      body {
+        padding: 14px;
+      }
+
+      h1 {
+        font-size: 25px;
+      }
+
+      .sub {
+        font-size: 13px;
+      }
+
+      .cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+      }
+
+      .card {
+        padding: 14px;
+      }
+
+      .card-value {
+        font-size: 22px;
+      }
+
+      #barChart,
+      #lineChart {
+        height: 360px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .cards {
+        grid-template-columns: 1fr;
+      }
+
+      .toolbar {
+        justify-content: center;
+      }
+
+      .toolbar button {
+        flex: 1;
+      }
+
+      #barChart,
+      #lineChart {
+        height: 330px;
+      }
+    }
+  </style>
 </head>
+
 <body>
-  <h2>华为乾崑辅助驾驶里程追踪</h2>
-  <div id="latest" style="margin:15px 0;font-size:18px;"></div>
-  <div id="chart" style="width:100%;height:500px;"></div>
+  <h1>华为乾崑智驾数据中心</h1>
+  <div class="sub">数据来源：华为乾崑官网｜每日自动更新</div>
 
- <script>
-async function main() {
-  const res = await fetch("data.csv?t=" + Date.now());
-  const text = await res.text();
+  <div class="cards">
+    <div class="card">
+      <div class="card-title">累计辅助驾驶里程</div>
+      <div class="card-value" id="assistTotal">-</div>
+      <div class="card-small">公里</div>
+    </div>
 
-  const rows = text.trim().split("\n").slice(1).map(r => r.split(","));
+    <div class="card">
+      <div class="card-title">累计总驾驶里程</div>
+      <div class="card-value" id="driveTotal">-</div>
+      <div class="card-small">公里</div>
+    </div>
 
-  const dates = rows.map(r => r[0]);
+    <div class="card">
+      <div class="card-title">本期辅助驾驶里程</div>
+      <div class="card-value" id="periodAssist">-</div>
+      <div class="card-small">公里</div>
+    </div>
 
-  // ratio 在最后一列
-  const ratio = rows.map(r => Number(r[r.length - 1]) * 100);
+    <div class="card">
+      <div class="card-title">本期总驾驶里程</div>
+      <div class="card-value" id="periodDrive">-</div>
+      <div class="card-small">公里</div>
+    </div>
 
-  const last = rows[rows.length - 1];
+    <div class="card">
+      <div class="card-title">本期辅助驾驶占比</div>
+      <div class="card-value" id="periodRatio">-</div>
+      <div class="card-small">辅助驾驶 / 总驾驶</div>
+    </div>
+  </div>
 
-  document.getElementById("latest").innerHTML = `
-    <b>当前：</b><br>
-    累计辅助驾驶里程：${Number(last[1]).toLocaleString()}<br>
-    累计总驾驶里程：${Number(last[2]).toLocaleString()}
-  `;
+  <div class="toolbar">
+    <button id="dailyBtn" class="active">按天</button>
+    <button id="monthlyBtn">按月</button>
+  </div>
 
-  const chart = echarts.init(document.getElementById("chart"));
+  <div class="chart-box">
+    <div id="barChart"></div>
+  </div>
 
-  chart.setOption({
-    title: {
-      text: "华为乾崑辅助驾驶占比趋势"
-    },
+  <div class="chart-box">
+    <div id="lineChart"></div>
+  </div>
 
-    tooltip: {
-      trigger: "axis",
-      formatter: function(params) {
-        return params[0].axisValue + "<br>" +
-               "辅助驾驶占比：" + params[0].data.toFixed(2) + "%";
+  <div class="footer">
+    * 蓝色为辅助驾驶里程，灰色为人工驾驶里程；整根柱子表示总驾驶里程。<br>
+    * 本页面为自动化数据追踪展示，原始数据来自华为乾崑官网公开页面。
+  </div>
+
+  <script>
+    let rawRows = [];
+    let mode = "daily";
+    let barChart = null;
+    let lineChart = null;
+
+    function numberFormat(n) {
+      return Number(n || 0).toLocaleString();
+    }
+
+    function percentFormat(n) {
+      return (Number(n || 0) * 100).toFixed(2) + "%";
+    }
+
+    function parseCSV(text) {
+      const lines = text.trim().split("\n").filter(Boolean);
+      const headers = lines[0].split(",").map(h => h.trim());
+
+      return lines.slice(1).map(line => {
+        const cols = line.split(",");
+        const obj = {};
+        headers.forEach((h, i) => {
+          obj[h] = cols[i];
+        });
+        return obj;
+      });
+    }
+
+    function aggregateMonthly(rows) {
+      const map = {};
+
+      rows.forEach(r => {
+        if (!r.date) return;
+
+        const month = r.date.slice(0, 7);
+
+        if (!map[month]) {
+          map[month] = {
+            date: month,
+            daily_assist: 0,
+            daily_drive: 0,
+            assist_total: r.assist_total,
+            drive_total: r.drive_total
+          };
+        }
+
+        map[month].daily_assist += Number(r.daily_assist || 0);
+        map[month].daily_drive += Number(r.daily_drive || 0);
+        map[month].assist_total = r.assist_total;
+        map[month].drive_total = r.drive_total;
+      });
+
+      return Object.values(map).map(r => ({
+        ...r,
+        ratio: r.daily_drive ? r.daily_assist / r.daily_drive : 0
+      }));
+    }
+
+    function getDisplayRows() {
+      if (mode === "monthly") {
+        return aggregateMonthly(rawRows);
       }
-    },
 
-    legend: {
-      data: ["辅助驾驶占比"]
-    },
+      return rawRows.map(r => ({
+        date: r.date,
+        daily_assist: Number(r.daily_assist || 0),
+        daily_drive: Number(r.daily_drive || 0),
+        ratio: Number(r.ratio || 0),
+        assist_total: r.assist_total,
+        drive_total: r.drive_total
+      }));
+    }
 
-    xAxis: {
-      type: "category",
-      data: dates
-    },
+    function render() {
+      const rows = getDisplayRows();
+      if (!rows.length) return;
 
-    yAxis: {
-      type: "value",
-      name: "%",
-      min: 0,
-      max: 100
-    },
+      const last = rows[rows.length - 1];
 
-    series: [
-      {
-        name: "辅助驾驶占比",
-        type: "line",
-        smooth: true,
-        symbolSize: 8,
-        data: ratio
+      document.getElementById("assistTotal").innerText = numberFormat(last.assist_total);
+      document.getElementById("driveTotal").innerText = numberFormat(last.drive_total);
+      document.getElementById("periodAssist").innerText = numberFormat(last.daily_assist);
+      document.getElementById("periodDrive").innerText = numberFormat(last.daily_drive);
+      document.getElementById("periodRatio").innerText = percentFormat(last.ratio);
+
+      const dates = rows.map(r => r.date);
+      const assist = rows.map(r => Number(r.daily_assist || 0));
+      const total = rows.map(r => Number(r.daily_drive || 0));
+      const human = total.map((v, i) => Math.max(v - assist[i], 0));
+      const ratio = rows.map(r => Number(r.ratio || 0) * 100);
+
+      const textColor = "#d1d5db";
+      const gridColor = "#1f2937";
+
+      if (!barChart) {
+        barChart = echarts.init(document.getElementById("barChart"));
       }
-    ]
-  });
-}
 
-main();
-</script>
+      if (!lineChart) {
+        lineChart = echarts.init(document.getElementById("lineChart"));
+      }
+
+      barChart.setOption({
+        backgroundColor: "transparent",
+        title: {
+          text: mode === "daily" ? "每日新增里程构成" : "每月新增里程构成",
+          textStyle: { color: textColor, fontSize: 18 }
+        },
+        tooltip: {
+          trigger: "axis",
+          axisPointer: { type: "shadow" },
+          formatter: function(params) {
+            const a = params.find(p => p.seriesName === "辅助驾驶");
+            const h = params.find(p => p.seriesName === "人工驾驶");
+            const totalValue = Number(a.value) + Number(h.value);
+            const pct = totalValue ? Number(a.value) / totalValue * 100 : 0;
+
+            return `${params[0].axisValue}<br>
+              辅助驾驶：${numberFormat(a.value)} 公里<br>
+              人工驾驶：${numberFormat(h.value)} 公里<br>
+              总里程：${numberFormat(totalValue)} 公里<br>
+              占比：${pct.toFixed(2)}%`;
+          }
+        },
+        legend: {
+          data: ["辅助驾驶", "人工驾驶"],
+          top: 32,
+          textStyle: { color: textColor }
+        },
+        grid: { left: 64, right: 26, top: 82, bottom: 52 },
+        xAxis: {
+          type: "category",
+          data: dates,
+          axisLabel: { color: textColor },
+          axisLine: { lineStyle: { color: gridColor } }
+        },
+        yAxis: {
+          type: "value",
+          name: "公里",
+          nameTextStyle: { color: textColor },
+          axisLabel: { color: textColor },
+          splitLine: { lineStyle: { color: gridColor } }
+        },
+        series: [
+          {
+            name: "辅助驾驶",
+            type: "bar",
+            stack: "total",
+            data: assist,
+            itemStyle: { color: "#2f80ff" }
+          },
+          {
+            name: "人工驾驶",
+            type: "bar",
+            stack: "total",
+            data: human,
+            itemStyle: { color: "#6b7280" }
+          }
+        ]
+      });
+
+      lineChart.setOption({
+        backgroundColor: "transparent",
+        title: {
+          text: mode === "daily" ? "每日辅助驾驶占比趋势" : "每月辅助驾驶占比趋势",
+          textStyle: { color: textColor, fontSize: 18 }
+        },
+        tooltip: {
+          trigger: "axis",
+          formatter: function(params) {
+            return `${params[0].axisValue}<br>辅助驾驶占比：${params[0].data.toFixed(2)}%`;
+          }
+        },
+        grid: { left: 64, right: 26, top: 76, bottom: 52 },
+        xAxis: {
+          type: "category",
+          data: dates,
+          axisLabel: { color: textColor },
+          axisLine: { lineStyle: { color: gridColor } }
+        },
+        yAxis: {
+          type: "value",
+          name: "%",
+          min: 0,
+          max: 100,
+          nameTextStyle: { color: textColor },
+          axisLabel: { color: textColor },
+          splitLine: { lineStyle: { color: gridColor } }
+        },
+        series: [
+          {
+            name: "辅助驾驶占比",
+            type: "line",
+            smooth: true,
+            symbolSize: 7,
+            data: ratio,
+            lineStyle: { width: 3, color: "#2f80ff" },
+            itemStyle: { color: "#2f80ff" },
+            areaStyle: {
+              color: "rgba(47, 128, 255, 0.12)"
+            }
+          }
+        ]
+      });
+    }
+
+    async function main() {
+      const res = await fetch("data.csv?t=" + Date.now());
+      const text = await res.text();
+
+      rawRows = parseCSV(text);
+
+      document.getElementById("dailyBtn").onclick = () => {
+        mode = "daily";
+        document.getElementById("dailyBtn").classList.add("active");
+        document.getElementById("monthlyBtn").classList.remove("active");
+        render();
+      };
+
+      document.getElementById("monthlyBtn").onclick = () => {
+        mode = "monthly";
+        document.getElementById("monthlyBtn").classList.add("active");
+        document.getElementById("dailyBtn").classList.remove("active");
+        render();
+      };
+
+      render();
+
+      window.addEventListener("resize", () => {
+        if (barChart) barChart.resize();
+        if (lineChart) lineChart.resize();
+      });
+    }
+
+    main();
+  </script>
 </body>
 </html>
