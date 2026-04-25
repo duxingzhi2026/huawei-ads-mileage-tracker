@@ -25,7 +25,7 @@ async function main() {
   const last = rows[rows.length - 1];
 
   document.getElementById("latest").innerHTML = `
-    <b>最近一次抓取：</b><br>
+    <b>当前：</b><br>
     累计辅助驾驶里程：${Number(last[1]).toLocaleString()}<br>
     累计总驾驶里程：${Number(last[2]).toLocaleString()}
   `;
