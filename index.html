@@ -7,6 +7,7 @@
 </head>
 <body>
   <h2>华为乾崑辅助驾驶里程追踪</h2>
+  <div id="latest" style="margin:15px 0;font-size:18px;"></div>
   <div id="chart" style="width:100%;height:500px;"></div>
 
   <script>
@@ -14,6 +15,14 @@
       const res = await fetch("data.csv");
       const text = await res.text();
       const rows = text.trim().split("\n").slice(1).map(r => r.split(","));
+
+      const last = rows[rows.length - 1];
+
+    document.getElementById("latest").innerHTML = `
+    <b>最近一次抓取：</b><br>
+    累计辅助驾驶里程：${Number(last[1]).toLocaleString()}<br>
+    累计总驾驶里程：${Number(last[2]).toLocaleString()}
+    `;
 
       const dates = rows.map(r => r[0]);
       const dailyAssist = rows.map(r => Number(r[3]));
