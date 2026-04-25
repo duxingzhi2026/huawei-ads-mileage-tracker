@@ -29,41 +29,74 @@ def scrape_real_data():
     from playwright.sync_api import sync_playwright
     import re
 
+    def parse_container(html):
+        tops = re.findall(
+            r'<li class="integer-digit" style="top: (-?\d+)px;">',
+            html
+        )
+
+        digits = []
+
+        for t in tops:
+            t = abs(int(t))
+            d = round(t / 48)
+            if d > 9:
+                d = 9
+            digits.append(str(d))
+
+        num = "".join(digits)
+
+        return int(num)
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
+
         page = browser.new_page(
             locale="zh-CN",
             viewport={"width": 1600, "height": 2200}
         )
 
         page.goto(URL, wait_until="domcontentloaded", timeout=120000)
-        page.wait_for_timeout(15000)
+        page.wait_for_timeout(10000)
 
         html = page.content()
-        text = page.locator("body").inner_text()
-
-        page.screenshot(path="debug.png", full_page=True)
-
-        # 打印包含“累计辅助驾驶里程”附近的 HTML
-        key = "乾崑智驾累计辅助驾驶里程"
-        idx = html.find(key)
-
-        print("HTML位置：", idx)
-
-        if idx != -1:
-            print("===== 关键HTML片段开始 =====")
-            print(html[max(0, idx - 3000): idx + 8000])
-            print("===== 关键HTML片段结束 =====")
-
-        # 同时列出所有 class，方便找数字组件
-        classes = sorted(set(re.findall(r'class="([^"]+)"', html)))
-        print("===== 页面class前200个 =====")
-        for c in classes[:200]:
-            print(c)
 
         browser.close()
 
-    raise ValueError("诊断完成：请查看日志里的HTML片段和 debug.png")
+    m1 = re.search(
+        r'<div id="numberContainer1">(.*?)</ul></div>',
+        html,
+        re.S
+    )
+
+    m2 = re.search(
+        r'<div id="numberContainer2">(.*?)</ul></div>',
+        html,
+        re.S
+    )
+
+    if not m1 or not m2:
+        raise ValueError("没有找到数字容器")
+
+    assist_total = parse_container(m1.group(1))
+    drive_total = parse_container(m2.group(1))
+
+    # 加单位换算：前三位是亿，中四位是万，后四位个位
+    def convert(n):
+        s = str(n)
+
+        if len(s) == 11:
+            return int(s)
+
+        return int(s)
+
+    assist_total = convert(assist_total)
+    drive_total = convert(drive_total)
+
+    print("辅助驾驶累计：", assist_total)
+    print("总驾驶累计：", drive_total)
+
+    return assist_total, drive_total
 
 def main():
     today = str(date.today())
