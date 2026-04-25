@@ -73,8 +73,14 @@ def main():
         df = pd.read_csv(DATA)
     else:
         df = pd.DataFrame(columns=[
-            "date", "assist_total", "drive_total",
-            "daily_assist", "daily_drive", "ratio"
+            "date",
+            "grab_assist_total",
+            "grab_drive_total",
+            "assist_total",
+            "drive_total",
+            "daily_assist",
+            "daily_drive",
+            "ratio"
         ])
 
     # 避免同一天重复追加
