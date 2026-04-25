@@ -29,8 +29,8 @@ def scrape_real_data():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page(locale="zh-CN")
-        page.goto(URL, wait_until="networkidle", timeout=60000)
-        page.wait_for_timeout(5000)
+        page.goto(URL, wait_until="domcontentloaded", timeout=120000)
+        page.wait_for_timeout(10000)
 
         text = page.locator("body").inner_text()
         browser.close()
