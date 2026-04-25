@@ -27,71 +27,46 @@ def parse_number(text):
 
 def scrape_real_data():
     from playwright.sync_api import sync_playwright
-    import re
 
-    def parse_container(html):
-        tops = re.findall(
-            r'<li class="integer-digit" style="top: (-?\d+)px;">',
-            html
-        )
-
+    def tops_to_number(tops):
         digits = []
-
-        for t in tops:
-            t = abs(int(t))
-            d = round(t / 48)
-            if d > 9:
-                d = 9
-            digits.append(str(d))
-
-        num = "".join(digits)
-
-        return int(num)
+        for top in tops:
+            top = str(top).replace("px", "").strip()
+            if top == "":
+                continue
+            digit = round(abs(float(top)) / 48)
+            digits.append(str(digit))
+        return int("".join(digits))
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-
         page = browser.new_page(
             locale="zh-CN",
             viewport={"width": 1600, "height": 2200}
         )
 
         page.goto(URL, wait_until="domcontentloaded", timeout=120000)
-        page.wait_for_timeout(10000)
+        page.wait_for_timeout(12000)
 
-        html = page.content()
+        assist_tops = page.locator(
+            "#numberContainer1 li.integer-digit"
+        ).evaluate_all("""
+            els => els.map(el => getComputedStyle(el).top)
+        """)
+
+        drive_tops = page.locator(
+            "#numberContainer2 li.integer-digit"
+        ).evaluate_all("""
+            els => els.map(el => getComputedStyle(el).top)
+        """)
 
         browser.close()
 
-    m1 = re.search(
-        r'<div id="numberContainer1">(.*?)</ul></div>',
-        html,
-        re.S
-    )
+    print("assist_tops =", assist_tops)
+    print("drive_tops =", drive_tops)
 
-    m2 = re.search(
-        r'<div id="numberContainer2">(.*?)</ul></div>',
-        html,
-        re.S
-    )
-
-    if not m1 or not m2:
-        raise ValueError("没有找到数字容器")
-
-    assist_total = parse_container(m1.group(1))
-    drive_total = parse_container(m2.group(1))
-
-    # 加单位换算：前三位是亿，中四位是万，后四位个位
-    def convert(n):
-        s = str(n)
-
-        if len(s) == 11:
-            return int(s)
-
-        return int(s)
-
-    assist_total = convert(assist_total)
-    drive_total = convert(drive_total)
+    assist_total = tops_to_number(assist_tops)
+    drive_total = tops_to_number(drive_tops)
 
     print("辅助驾驶累计：", assist_total)
     print("总驾驶累计：", drive_total)
