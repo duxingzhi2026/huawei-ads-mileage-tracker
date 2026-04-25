@@ -27,41 +27,43 @@ def parse_number(text):
 
 def scrape_real_data():
     from playwright.sync_api import sync_playwright
+    import re
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-
         page = browser.new_page(
             locale="zh-CN",
             viewport={"width": 1600, "height": 2200}
         )
 
         page.goto(URL, wait_until="domcontentloaded", timeout=120000)
-        page.wait_for_timeout(12000)
+        page.wait_for_timeout(15000)
 
-        # 找所有数字轮子当前高亮数字
-        nums = page.locator(".odometer-digit .active, .num-item.active").all_inner_texts()
+        html = page.content()
+        text = page.locator("body").inner_text()
 
-        print("读取到数字位：", nums)
+        page.screenshot(path="debug.png", full_page=True)
+
+        # 打印包含“累计辅助驾驶里程”附近的 HTML
+        key = "乾崑智驾累计辅助驾驶里程"
+        idx = html.find(key)
+
+        print("HTML位置：", idx)
+
+        if idx != -1:
+            print("===== 关键HTML片段开始 =====")
+            print(html[max(0, idx - 3000): idx + 8000])
+            print("===== 关键HTML片段结束 =====")
+
+        # 同时列出所有 class，方便找数字组件
+        classes = sorted(set(re.findall(r'class="([^"]+)"', html)))
+        print("===== 页面class前200个 =====")
+        for c in classes[:200]:
+            print(c)
 
         browser.close()
 
-    # 拼接数字
-    digits = "".join([x.strip() for x in nums if x.strip().isdigit()])
-
-    if len(digits) < 10:
-        raise ValueError("数字位读取失败")
-
-    # 前半段辅助驾驶，后半段总里程（后续可微调）
-    mid = len(digits) // 2
-
-    assist_total = int(digits[:mid])
-    drive_total = int(digits[mid:])
-
-    if assist_total > drive_total:
-        assist_total, drive_total = drive_total, assist_total
-
-    return assist_total, drive_total
+    raise ValueError("诊断完成：请查看日志里的HTML片段和 debug.png")
 
 def main():
     today = str(date.today())
