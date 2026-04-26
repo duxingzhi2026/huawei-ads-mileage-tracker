@@ -237,7 +237,8 @@
   </div>
 
   <script>
-    let rawRows = [];
+    let dailyRows = [];
+    let monthlyRows = [];
     let mode = "daily";
     let barChart = null;
     let lineChart = null;
@@ -250,65 +251,8 @@
       return (Number(n || 0) * 100).toFixed(2) + "%";
     }
 
-    function parseCSV(text) {
-      const lines = text.trim().split("\n").filter(Boolean);
-      const headers = lines[0]
-        .split(",")
-        .map(h => h.trim().replace(/^\uFEFF/, ""));
-
-      return lines.slice(1).map(line => {
-        const cols = line.split(",");
-        const obj = {};
-        headers.forEach((h, i) => {
-          obj[h] = cols[i];
-        });
-        return obj;
-      });
-    }
-
-    function aggregateMonthly(rows) {
-      const map = {};
-
-      rows.forEach(r => {
-        if (!r.date) return;
-
-        const month = r.date.slice(0, 7);
-
-        if (!map[month]) {
-          map[month] = {
-            date: month,
-            daily_assist: 0,
-            daily_drive: 0,
-            assist_total: r.assist_total,
-            drive_total: r.drive_total
-          };
-        }
-
-        map[month].daily_assist += Number(r.daily_assist || 0);
-        map[month].daily_drive += Number(r.daily_drive || 0);
-        map[month].assist_total = r.assist_total;
-        map[month].drive_total = r.drive_total;
-      });
-
-      return Object.values(map).map(r => ({
-        ...r,
-        ratio: r.daily_drive ? r.daily_assist / r.daily_drive : 0
-      }));
-    }
-
     function getDisplayRows() {
-      if (mode === "monthly") {
-        return aggregateMonthly(rawRows);
-      }
-
-      return rawRows.map(r => ({
-        date: r.date,
-        daily_assist: Number(r.daily_assist || 0),
-        daily_drive: Number(r.daily_drive || 0),
-        ratio: Number(r.ratio || 0),
-        assist_total: r.assist_total,
-        drive_total: r.drive_total
-      }));
+      return mode === "monthly" ? monthlyRows : dailyRows;
     }
 
     function render() {
@@ -444,11 +388,19 @@
       });
     }
 
-    async function main() {
-      const res = await fetch("data.csv?t=" + Date.now());
-      const text = await res.text();
+    async function loadJson(path) {
+      const res = await fetch(`${path}?t=${Date.now()}`);
+      if (!res.ok) {
+        throw new Error(`无法读取 ${path}`);
+      }
+      return await res.json();
+    }
 
-      rawRows = parseCSV(text);
+    async function main() {
+      [dailyRows, monthlyRows] = await Promise.all([
+        loadJson("daily.json"),
+        loadJson("monthly.json")
+      ]);
 
       document.getElementById("dailyBtn").onclick = () => {
         mode = "daily";
@@ -472,7 +424,10 @@
       });
     }
 
-    main();
+    main().catch(err => {
+      console.error(err);
+      document.querySelector(".sub").innerText = "数据读取失败，请检查 daily.json / monthly.json 是否已生成。";
+    });
   </script>
 </body>
 </html>

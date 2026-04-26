@@ -6,6 +6,8 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 from playwright.sync_api import sync_playwright
 
+from process_data import generate_output_files
+
 URL = "https://auto.huawei.com/cn/ads/safety-and-data-report"
 DATA = Path("data.csv")
 TIMEZONE = ZoneInfo("Asia/Shanghai")
@@ -144,6 +146,7 @@ def main():
 
     df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
     df.to_csv(DATA, index=False, encoding="utf-8-sig")
+    generate_output_files()
 
     print("抓取成功")
     print("统计日期：", stat_date)

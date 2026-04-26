@@ -1,0 +1,22 @@
+[
+  {
+    "date": "2026-04-25",
+    "assist_total": 10340268100,
+    "drive_total": 30650730335,
+    "daily_assist": 0,
+    "daily_drive": 0,
+    "ratio": 0.0,
+    "grab_assist_total": 10340268100,
+    "grab_drive_total": 30650730335
+  },
+  {
+    "date": "2026-04-26",
+    "assist_total": 10340329931,
+    "drive_total": 30650883479,
+    "daily_assist": 61831,
+    "daily_drive": 153144,
+    "ratio": 0.4037441884762054,
+    "grab_assist_total": 10340329931,
+    "grab_drive_total": 30650883479
+  }
+]
