@@ -1,11 +1,14 @@
-from datetime import date
+from datetime import datetime, timedelta
 from pathlib import Path
 import re
+from zoneinfo import ZoneInfo
+
 import pandas as pd
 from playwright.sync_api import sync_playwright
 
 URL = "https://auto.huawei.com/cn/ads/safety-and-data-report"
 DATA = Path("data.csv")
+TIMEZONE = ZoneInfo("Asia/Shanghai")
 
 
 def parse_number(text):
@@ -26,8 +29,6 @@ def parse_number(text):
 
 
 def scrape_real_data():
-    from playwright.sync_api import sync_playwright
-
     def tops_to_number(tops):
         digits = []
         for top in tops:
@@ -73,8 +74,21 @@ def scrape_real_data():
 
     return assist_total, drive_total
 
+
+def get_stat_date(now=None):
+    """
+    每天 02:00 抓到的是“截至今天 02:00 的累计值”。
+    该累计值减去前一天 02:00 的累计值，得到的是“昨天”的行驶里程。
+
+    例：2026-04-27 02:00 抓取值 - 2026-04-26 02:00 抓取值 = 2026-04-26 的里程。
+    """
+    if now is None:
+        now = datetime.now(TIMEZONE)
+    return (now.date() - timedelta(days=1)).isoformat()
+
+
 def main():
-    today = str(date.today())
+    stat_date = get_stat_date()
 
     assist_total, drive_total = scrape_real_data()
 
@@ -83,49 +97,56 @@ def main():
     else:
         df = pd.DataFrame(columns=[
             "date",
-            "grab_assist_total",
-            "grab_drive_total",
             "assist_total",
             "drive_total",
             "daily_assist",
             "daily_drive",
-            "ratio"
+            "ratio",
+            "grab_assist_total",
+            "grab_drive_total"
         ])
 
-    # 避免同一天重复追加
-    if len(df) > 0 and str(df.iloc[-1]["date"]) == today:
+    # 避免同一个统计日期重复追加。
+    # 例如当天手动重跑 workflow 时，先删除旧的同日记录，再用最新抓取值重算。
+    if len(df) > 0 and str(df.iloc[-1]["date"]) == stat_date:
         df = df.iloc[:-1]
 
     if len(df) > 0:
         last = df.iloc[-1]
-        daily_assist = assist_total - int(last["assist_total"])
-        daily_drive = drive_total - int(last["drive_total"])
+        previous_assist_total = int(float(last["assist_total"]))
+        previous_drive_total = int(float(last["drive_total"]))
+        daily_assist = assist_total - previous_assist_total
+        daily_drive = drive_total - previous_drive_total
     else:
+        # 第一条记录只能作为基准点，没有上一天 02:00 的累计值，所以日增量记为 0。
         daily_assist = 0
         daily_drive = 0
 
     ratio = daily_assist / daily_drive if daily_drive else 0
 
     new_row = {
-        "date": today,
+        # 注意：这里不是抓取当天，而是本次差值对应的统计日期。
+        "date": stat_date,
 
-        # 原始抓取值（网页展示用）
-        "grab_assist_total": assist_total,
-        "grab_drive_total": drive_total,
-
-        # 正式统计字段
+        # 正式统计字段：保存本次 02:00 抓到的累计值，供下一天计算差值使用。
         "assist_total": assist_total,
         "drive_total": drive_total,
 
+        # 本统计日的行驶里程 = 本次累计值 - 上一次 02:00 累计值。
         "daily_assist": daily_assist,
         "daily_drive": daily_drive,
-        "ratio": ratio
+        "ratio": ratio,
+
+        # 原始抓取值保留一份，方便以后排查。
+        "grab_assist_total": assist_total,
+        "grab_drive_total": drive_total,
     }
 
     df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
     df.to_csv(DATA, index=False, encoding="utf-8-sig")
 
     print("抓取成功")
+    print("统计日期：", stat_date)
     print(new_row)
 
 
