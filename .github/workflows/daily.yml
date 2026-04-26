@@ -29,7 +29,7 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add data.csv
-          git commit -m "update mileage data" || echo "no changes"
+          git add data.csv daily.json monthly.json summary.json process_data.py
+          git commit -m "update mileage data and generated json" || echo "no changes"
           git pull --rebase origin main
           git push origin HEAD:main
