@@ -252,7 +252,9 @@
 
     function parseCSV(text) {
       const lines = text.trim().split("\n").filter(Boolean);
-      const headers = lines[0].split(",").map(h => h.trim());
+      const headers = lines[0]
+        .split(",")
+        .map(h => h.trim().replace(/^\uFEFF/, ""));
 
       return lines.slice(1).map(line => {
         const cols = line.split(",");
