@@ -200,21 +200,9 @@
     </div>
 
     <div class="card">
-      <div class="card-title">本期辅助驾驶里程</div>
-      <div class="card-value" id="periodAssist">-</div>
-      <div class="card-small">公里</div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">本期总驾驶里程</div>
-      <div class="card-value" id="periodDrive">-</div>
-      <div class="card-small">公里</div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">本期辅助驾驶占比</div>
-      <div class="card-value" id="periodRatio">-</div>
-      <div class="card-small">辅助驾驶 / 总驾驶</div>
+      <div class="card-title">累计辅助驾驶比例</div>
+      <div class="card-value" id="totalRatio">-</div>
+      <div class="card-small">累计辅助驾驶 / 累计总驾驶</div>
     </div>
   </div>
 
@@ -263,15 +251,17 @@
 
       document.getElementById("assistTotal").innerText = numberFormat(last.assist_total);
       document.getElementById("driveTotal").innerText = numberFormat(last.drive_total);
-      document.getElementById("periodAssist").innerText = numberFormat(last.daily_assist);
-      document.getElementById("periodDrive").innerText = numberFormat(last.daily_drive);
-      document.getElementById("periodRatio").innerText = percentFormat(last.ratio);
+      document.getElementById("totalRatio").innerText = percentFormat(
+        Number(last.assist_total || 0) / Number(last.drive_total || 0)
+      );
 
-      const dates = rows.map(r => r.date);
-      const assist = rows.map(r => Number(r.daily_assist || 0));
-      const total = rows.map(r => Number(r.daily_drive || 0));
+      // 第一条样本是建档基准，没有本期增量；图表从第二条开始展示
+      const chartRows = rows.slice(1);
+      const dates = chartRows.map(r => r.date);
+      const assist = chartRows.map(r => Number(r.daily_assist || 0) / 100000000);
+      const total = chartRows.map(r => Number(r.daily_drive || 0) / 100000000);
       const human = total.map((v, i) => Math.max(v - assist[i], 0));
-      const ratio = rows.map(r => Number(r.ratio || 0) * 100);
+      const ratio = chartRows.map(r => Number(r.ratio || 0) * 100);
 
       const textColor = "#d1d5db";
       const gridColor = "#1f2937";
@@ -300,9 +290,9 @@
             const pct = totalValue ? Number(a.value) / totalValue * 100 : 0;
 
             return `${params[0].axisValue}<br>
-              辅助驾驶：${numberFormat(a.value)} 公里<br>
-              人工驾驶：${numberFormat(h.value)} 公里<br>
-              总里程：${numberFormat(totalValue)} 公里<br>
+              辅助驾驶：${Number(a.value).toFixed(4)} 亿公里<br>
+              人工驾驶：${Number(h.value).toFixed(4)} 亿公里<br>
+              总里程：${totalValue.toFixed(4)} 亿公里<br>
               占比：${pct.toFixed(2)}%`;
           }
         },
@@ -320,7 +310,7 @@
         },
         yAxis: {
           type: "value",
-          name: "公里",
+          name: "亿公里",
           nameTextStyle: { color: textColor },
           axisLabel: { color: textColor },
           splitLine: { lineStyle: { color: gridColor } }
