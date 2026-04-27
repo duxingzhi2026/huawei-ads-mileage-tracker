@@ -129,8 +129,73 @@
       }
     }
 
+    @media (max-width: 800px) {
+      body {
+        padding: 14px;
+      }
 
+      h1 {
+        font-size: 25px;
+      }
 
+      .sub {
+        font-size: 13px;
+      }
+
+      .cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+      }
+
+      .card {
+        padding: 14px;
+      }
+
+      .card-value {
+        font-size: 22px;
+      }
+
+      #barChart,
+      #lineChart {
+        height: 360px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .cards {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+
+      .card {
+        padding: 12px 8px;
+      }
+
+      .card-title {
+        font-size: 12px;
+      }
+
+      .card-value {
+        font-size: 18px;
+      }
+
+      .card-small {
+        font-size: 11px;
+      }
+
+      .toolbar {
+        justify-content: center;
+      }
+
+      .toolbar button {
+        flex: 1;
+      }
+
+      #barChart,
+      #lineChart {
+        height: 330px;
+      }
+    }
   </style>
 </head>
 
