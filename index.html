@@ -4,11 +4,11 @@
  <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>华为乾崑智驾数据中心</title>
+<title>华为乾崑智驾数据展示</title>
 
 <meta name="description" content="实时追踪华为乾崑辅助驾驶累计里程、总里程与使用占比">
 
-<meta property="og:title" content="华为乾崑智驾数据中心">
+<meta property="og:title" content="华为乾崑智驾数据展示">
 <meta property="og:description" content="每日自动更新｜辅助驾驶里程｜总驾驶里程｜占比趋势">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://duxingzhi2026.github.io/huawei-ads-mileage-tracker/">
@@ -161,7 +161,6 @@
       }
     }
 
-    /* ===== 手机端优化（建议直接替换你原来的 @media (max-width: 520px) 部分）===== */
 @media (max-width: 520px) {
   body {
     padding: 12px;
@@ -236,8 +235,8 @@
 </head>
 
 <body>
-  <h1>华为乾崑智驾数据中心</h1>
-  <div class="sub">数据来源：华为乾崑官网｜每日凌晨自动更新</div>
+  <h1>华为乾崑智驾数据展示</h1>
+  <div class="sub">原始数据来源：华为乾崑官网｜每日凌晨自动更新</div>
 
   <div class="cards">
     <div class="card">
@@ -329,7 +328,7 @@
       barChart.setOption({
         backgroundColor: "transparent",
         title: {
-          text: mode === "daily" ? "每日新增里程构成" : "每月新增里程构成",
+          text: mode === "daily" ? "每日新增里程" : "每月新增里程",
           textStyle: { color: textColor, fontSize: 18 }
         },
         tooltip: {
