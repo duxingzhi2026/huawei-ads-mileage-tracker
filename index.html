@@ -190,13 +190,13 @@
     <div class="card">
       <div class="card-title">累计辅助驾驶里程</div>
       <div class="card-value" id="assistTotal">-</div>
-      <div class="card-small">公里</div>
+      <div class="card-small">亿公里</div>
     </div>
 
     <div class="card">
       <div class="card-title">累计总驾驶里程</div>
       <div class="card-value" id="driveTotal">-</div>
-      <div class="card-small">公里</div>
+      <div class="card-small">亿公里</div>
     </div>
 
     <div class="card">
@@ -249,8 +249,8 @@
 
       const last = rows[rows.length - 1];
 
-      document.getElementById("assistTotal").innerText = numberFormat(last.assist_total);
-      document.getElementById("driveTotal").innerText = numberFormat(last.drive_total);
+      document.getElementById("assistTotal").innerText = (Number(last.assist_total)/100000000).toFixed(2);
+      document.getElementById("driveTotal").innerText = (Number(last.drive_total)/100000000).toFixed(2);
       document.getElementById("totalRatio").innerText = percentFormat(
         Number(last.assist_total || 0) / Number(last.drive_total || 0)
       );
@@ -356,7 +356,7 @@
           type: "value",
           name: "%",
           min: 0,
-          max: 100,
+          max: 50,
           nameTextStyle: { color: textColor },
           axisLabel: { color: textColor },
           splitLine: { lineStyle: { color: gridColor } }
