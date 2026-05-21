@@ -11,6 +11,7 @@ from process_data import generate_output_files
 URL = "https://auto.huawei.com/cn/ads/safety-and-data-report"
 DATA = Path("data.csv")
 TIMEZONE = ZoneInfo("Asia/Shanghai")
+DIGIT_HEIGHT = 48
 
 
 def parse_number(text):
@@ -31,15 +32,74 @@ def parse_number(text):
 
 
 def scrape_real_data():
-    def tops_to_number(tops):
+    def digit_from_top(top):
+        top = str(top or "").replace("px", "").strip()
+        if top == "":
+            return None
+        return round(abs(float(top)) / DIGIT_HEIGHT)
+
+    def digit_from_transform(transform):
+        transform = str(transform or "").strip()
+        if transform in ("", "none"):
+            return None
+
+        values = re.findall(r"-?\d+(?:\.\d+)?", transform)
+        if not values:
+            return None
+
+        if transform.startswith("matrix3d") and len(values) >= 16:
+            translate_y = float(values[13])
+        elif transform.startswith("matrix") and len(values) >= 6:
+            translate_y = float(values[5])
+        else:
+            translate_y = float(values[-1])
+        return round(abs(translate_y) / DIGIT_HEIGHT)
+
+    def digit_from_inner_text(inner_text):
+        text = str(inner_text or "").strip()
+        return int(text) if re.fullmatch(r"\d", text) else None
+
+    def read_digits(label, items):
         digits = []
-        for top in tops:
-            top = str(top).replace("px", "").strip()
-            if top == "":
+        for index, item in enumerate(items):
+            digit = digit_from_top(item.get("top"))
+            source = "top"
+
+            if digit is None:
+                digit = digit_from_transform(item.get("transform"))
+                source = "transform"
+
+            if digit is None:
+                digit = digit_from_inner_text(item.get("innerText"))
+                source = "innerText"
+
+            print(
+                f"{label}[{index}] top={item.get('top')!r}, "
+                f"transform={item.get('transform')!r}, "
+                f"innerText={item.get('innerText')!r}, "
+                f"digit={digit!r}, source={source}"
+            )
+
+            if digit is None:
                 continue
-            digit = round(abs(float(top)) / 48)
             digits.append(str(digit))
+
+        if not digits:
+            raise RuntimeError(f"{label} 没有抓到任何数字位，页面结构可能变化或页面尚未加载完成")
+
         return int("".join(digits))
+
+    def read_digit_items(page, selector):
+        return page.locator(selector).evaluate_all("""
+            els => els.map(el => {
+                const style = getComputedStyle(el);
+                return {
+                    top: style.top,
+                    transform: style.transform,
+                    innerText: el.innerText,
+                };
+            })
+        """)
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -51,25 +111,27 @@ def scrape_real_data():
         page.goto(URL, wait_until="domcontentloaded", timeout=120000)
         page.wait_for_timeout(12000)
 
-        assist_tops = page.locator(
-            "#numberContainer1 li.integer-digit"
-        ).evaluate_all("""
-            els => els.map(el => getComputedStyle(el).top)
-        """)
+        print("#numberContainer1 count =", page.locator("#numberContainer1").count())
+        print("#numberContainer2 count =", page.locator("#numberContainer2").count())
+        print(
+            "#numberContainer1 li.integer-digit count =",
+            page.locator("#numberContainer1 li.integer-digit").count()
+        )
+        print(
+            "#numberContainer2 li.integer-digit count =",
+            page.locator("#numberContainer2 li.integer-digit").count()
+        )
 
-        drive_tops = page.locator(
-            "#numberContainer2 li.integer-digit"
-        ).evaluate_all("""
-            els => els.map(el => getComputedStyle(el).top)
-        """)
+        assist_items = read_digit_items(page, "#numberContainer1 li.integer-digit")
+        drive_items = read_digit_items(page, "#numberContainer2 li.integer-digit")
 
         browser.close()
 
-    print("assist_tops =", assist_tops)
-    print("drive_tops =", drive_tops)
+    print("assist_items =", assist_items)
+    print("drive_items =", drive_items)
 
-    assist_total = tops_to_number(assist_tops)
-    drive_total = tops_to_number(drive_tops)
+    assist_total = read_digits("assist", assist_items)
+    drive_total = read_digits("drive", drive_items)
 
     print("辅助驾驶累计：", assist_total)
     print("总驾驶累计：", drive_total)
