@@ -251,12 +251,12 @@
   },
   {
     "date": "2026-05-20",
-    "assist_total": 11189315210,
-    "drive_total": 32878109495,
-    "daily_assist": 36725646,
-    "daily_drive": 110670620,
-    "ratio": 0.33184639247525677,
-    "grab_assist_total": 11189315210,
-    "grab_drive_total": 32878109495
+    "assist_total": 11188953021,
+    "drive_total": 32877168169,
+    "daily_assist": 36363457,
+    "daily_drive": 109729294,
+    "ratio": 0.33139242652923656,
+    "grab_assist_total": 11188953021,
+    "grab_drive_total": 32877168169
   }
 ]
