@@ -1,10 +1,10 @@
 name: Daily Mileage Tracker
 
 on:
-  push:
-    branches: [ main ]
   schedule:
-    - cron: "13 16 * * *"
+    # GitHub schedule can start late. Start at 21:37 Beijing time,
+    # then wait inside the job and scrape at about 00:10 Beijing time.
+    - cron: "37 13 * * *"
   workflow_dispatch:
 
 permissions:
@@ -20,6 +20,21 @@ jobs:
       - name: Sync latest main
         run: |
           git pull --rebase origin main
+
+      - name: Wait until target scrape time
+        shell: bash
+        run: |
+          target=$(date -u -d "$(date -u +%F) 16:10:00" +%s)
+          now=$(date -u +%s)
+
+          if [ "$now" -lt "$target" ]; then
+            wait_seconds=$((target - now))
+            echo "Waiting ${wait_seconds}s until 00:10 Beijing time"
+            sleep "$wait_seconds"
+          else
+            late_seconds=$((now - target))
+            echo "Schedule started ${late_seconds}s after 00:10 Beijing time; scraping now"
+          fi
 
       - uses: actions/setup-python@v5
         with:
