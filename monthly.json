@@ -3,16 +3,16 @@
     "date": "2026-04",
     "assist_total": 10497943907,
     "drive_total": 31073355152,
-    "daily_assist": 48517319,
-    "daily_drive": 115333796,
-    "ratio": 0.4206687084157015
+    "daily_assist": 0,
+    "daily_drive": 0,
+    "ratio": 0
   },
   {
     "date": "2026-05",
-    "assist_total": 11260947082,
-    "drive_total": 33080371918,
-    "daily_assist": 763003175,
-    "daily_drive": 2007016766,
-    "ratio": 0.3801678132069974
+    "assist_total": 11290707683,
+    "drive_total": 33161648976,
+    "daily_assist": 792763776,
+    "daily_drive": 2088293824,
+    "ratio": 0.37962271730589575
   }
 ]
