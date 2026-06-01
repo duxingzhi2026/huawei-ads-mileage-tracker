@@ -42,7 +42,24 @@ jobs:
 
       - run: pip install -r requirements.txt
       - run: python -m playwright install --with-deps chromium
-      - run: python scrape.py
+
+      - name: Scrape data with retries
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            echo "Scrape attempt ${attempt}/3"
+            if python scrape.py; then
+              exit 0
+            fi
+
+            if [ "$attempt" -lt 3 ]; then
+              echo "Scrape failed; waiting 5 minutes before retry"
+              sleep 300
+            fi
+          done
+
+          echo "Scrape failed after 3 attempts"
+          exit 1
 
       - name: Commit data
         run: |
