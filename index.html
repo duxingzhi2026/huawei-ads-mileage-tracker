@@ -25,19 +25,20 @@
     body {
       margin: 0;
       padding: 24px;
-      background: radial-gradient(circle at top, #111827 0%, #05070a 45%, #000 100%);
-      color: #f5f7fa;
+      background: linear-gradient(180deg, #fff7f8 0%, #fff 46%, #f6fbff 100%);
+      color: #18212f;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
     }
 
     h1 {
+      color: #171923;
       font-size: 34px;
       margin: 0 0 8px;
       letter-spacing: 0.5px;
     }
 
     .sub {
-      color: #9aa4b2;
+      color: #6b7280;
       margin-bottom: 24px;
       font-size: 15px;
     }
@@ -50,21 +51,21 @@
     }
 
     .card {
-      background: linear-gradient(180deg, rgba(17, 24, 39, 0.96), rgba(8, 12, 18, 0.96));
-      border: 1px solid #1f2937;
-      border-radius: 18px;
+      background: #fff;
+      border: 1px solid #ffd8e0;
+      border-radius: 8px;
       padding: 20px;
-      box-shadow: 0 0 30px rgba(0, 0, 0, 0.35);
+      box-shadow: 0 12px 30px rgba(255, 36, 66, 0.09);
     }
 
     .card-title {
-      color: #aab4c3;
+      color: #5f6472;
       font-size: 14px;
       margin-bottom: 10px;
     }
 
     .card-value {
-      color: #2f80ff;
+      color: #ff2442;
       font-size: 30px;
       font-weight: 750;
       line-height: 1.2;
@@ -72,7 +73,7 @@
     }
 
     .card-small {
-      color: #8f99aa;
+      color: #9a6b76;
       margin-top: 6px;
       font-size: 13px;
     }
@@ -85,28 +86,29 @@
     }
 
     .toolbar button {
-      background: #111827;
-      color: #dbeafe;
-      border: 1px solid #334155;
+      background: #fff;
+      color: #5b6472;
+      border: 1px solid #f2b8c4;
       padding: 8px 18px;
       border-radius: 999px;
       cursor: pointer;
       font-size: 14px;
+      box-shadow: 0 8px 18px rgba(255, 36, 66, 0.08);
     }
 
     .toolbar button.active {
-      background: #2563eb;
-      border-color: #3b82f6;
+      background: #ff2442;
+      border-color: #ff2442;
       color: white;
     }
 
     .chart-box {
-      background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(7, 11, 17, 0.96));
-      border: 1px solid #1f2937;
-      border-radius: 20px;
+      background: #fff;
+      border: 1px solid #ffe0e6;
+      border-radius: 8px;
       padding: 18px;
       margin-bottom: 22px;
-      box-shadow: 0 0 35px rgba(0, 0, 0, 0.35);
+      box-shadow: 0 14px 34px rgba(255, 36, 66, 0.08);
     }
 
     #barChart,
@@ -116,7 +118,7 @@
     }
 
     .footer {
-      color: #6b7280;
+      color: #8a6d74;
       text-align: center;
       margin-top: 24px;
       font-size: 13px;
@@ -186,7 +188,7 @@
 
   .card {
     padding: 14px 10px;
-    border-radius: 20px;
+    border-radius: 8px;
     min-height: 60px;
   }
 
@@ -201,7 +203,7 @@
   .card-value {
     font-size: 20px;
     line-height: 1.05;
-    letter-spacing: -0.5px;
+    letter-spacing: 0;
     margin-bottom: 8px;
     word-break: break-word;
   }
@@ -313,8 +315,11 @@
       const human = total.map((v, i) => Math.max(v - assist[i], 0));
       const ratio = chartRows.map(r => Number(r.ratio || 0) * 100);
 
-      const textColor = "#d1d5db";
-      const gridColor = "#1f2937";
+      const textColor = "#303845";
+      const mutedTextColor = "#6b7280";
+      const gridColor = "#eef1f5";
+      const assistColor = "#ff2442";
+      const humanColor = "#9aa6b2";
 
       if (!barChart) {
         barChart = echarts.init(document.getElementById("barChart"));
@@ -349,20 +354,20 @@
         legend: {
           data: ["辅助驾驶", "人工驾驶"],
           top: 32,
-          textStyle: { color: textColor }
+          textStyle: { color: mutedTextColor }
         },
         grid: { left: 64, right: 26, top: 82, bottom: 52 },
         xAxis: {
           type: "category",
           data: dates,
-          axisLabel: { color: textColor },
+          axisLabel: { color: mutedTextColor },
           axisLine: { lineStyle: { color: gridColor } }
         },
         yAxis: {
           type: "value",
           name: "亿公里",
-          nameTextStyle: { color: textColor },
-          axisLabel: { color: textColor },
+          nameTextStyle: { color: mutedTextColor },
+          axisLabel: { color: mutedTextColor },
           splitLine: { lineStyle: { color: gridColor } }
         },
         series: [
@@ -371,14 +376,14 @@
             type: "bar",
             stack: "total",
             data: assist,
-            itemStyle: { color: "#2f80ff" }
+            itemStyle: { color: assistColor }
           },
           {
             name: "人工驾驶",
             type: "bar",
             stack: "total",
             data: human,
-            itemStyle: { color: "#6b7280" }
+            itemStyle: { color: humanColor }
           }
         ]
       });
@@ -399,7 +404,7 @@
         xAxis: {
           type: "category",
           data: dates,
-          axisLabel: { color: textColor },
+          axisLabel: { color: mutedTextColor },
           axisLine: { lineStyle: { color: gridColor } }
         },
         yAxis: {
@@ -407,8 +412,8 @@
           name: "%",
           min: 0,
           max: 50,
-          nameTextStyle: { color: textColor },
-          axisLabel: { color: textColor },
+          nameTextStyle: { color: mutedTextColor },
+          axisLabel: { color: mutedTextColor },
           splitLine: { lineStyle: { color: gridColor } }
         },
         series: [
@@ -418,10 +423,10 @@
             smooth: true,
             symbolSize: 7,
             data: ratio,
-            lineStyle: { width: 3, color: "#2f80ff" },
-            itemStyle: { color: "#2f80ff" },
+            lineStyle: { width: 3, color: assistColor },
+            itemStyle: { color: assistColor },
             areaStyle: {
-              color: "rgba(47, 128, 255, 0.12)"
+              color: "rgba(255, 36, 66, 0.12)"
             }
           }
         ]
