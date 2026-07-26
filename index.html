@@ -332,7 +332,7 @@
       barChart.setOption({
         backgroundColor: "transparent",
         title: {
-          text: mode === "daily" ? "每日新增里程" : "每月新增里程",
+          text: mode === "daily" ? "每日ADS新增里程" : "每月ADS新增里程",
           textStyle: { color: textColor, fontSize: 18 }
         },
         tooltip: {
@@ -391,7 +391,7 @@
       lineChart.setOption({
         backgroundColor: "transparent",
         title: {
-          text: mode === "daily" ? "每日辅助驾驶占比趋势" : "每月辅助驾驶占比趋势",
+          text: mode === "daily" ? "每日ADS辅助驾驶占比趋势" : "每月ADS辅助驾驶占比趋势",
           textStyle: { color: textColor, fontSize: 18 }
         },
         tooltip: {
@@ -421,7 +421,8 @@
             name: "辅助驾驶占比",
             type: "line",
             smooth: true,
-            symbolSize: 7,
+            showSymbol: false,
+            symbolSize: 0,
             data: ratio,
             lineStyle: { width: 3, color: assistColor },
             itemStyle: { color: assistColor },
