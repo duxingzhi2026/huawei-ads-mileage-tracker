@@ -30,5 +30,13 @@
     "daily_assist": 1064262194,
     "daily_drive": 2780295222,
     "ratio": 0.3827874772357538
+  },
+  {
+    "date": "2026-08",
+    "assist_total": 13482200831,
+    "drive_total": 39075820143,
+    "daily_assist": 46192891,
+    "daily_drive": 108925125,
+    "ratio": 0.42407930218120016
   }
 ]
