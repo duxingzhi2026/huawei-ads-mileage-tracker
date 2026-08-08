@@ -4,7 +4,6 @@ import re
 from zoneinfo import ZoneInfo
 
 import pandas as pd
-from playwright.sync_api import sync_playwright
 
 from process_data import generate_output_files
 
@@ -32,6 +31,8 @@ def parse_number(text):
 
 
 def scrape_real_data():
+    from playwright.sync_api import sync_playwright
+
     def digit_from_top(top):
         top = str(top or "").replace("px", "").strip()
         if top == "":
@@ -151,6 +152,83 @@ def get_stat_date(now=None):
     return (now.date() - timedelta(days=1)).isoformat()
 
 
+def split_integer_evenly(total, parts):
+    """Split an integer into near-equal parts while preserving the exact sum."""
+    if parts < 1:
+        raise ValueError("parts must be positive")
+    if total < 0:
+        raise ValueError("cumulative mileage cannot decrease")
+
+    quotient, remainder = divmod(total, parts)
+    return [quotient] * (parts - remainder) + [quotient + 1] * remainder
+
+
+def build_rows(df, stat_date, assist_total, drive_total):
+    """Build the target row and automatically fill any missing calendar dates."""
+    target_date = datetime.fromisoformat(stat_date).date()
+    replacing_estimated = False
+
+    if len(df) > 0 and str(df.iloc[-1]["date"]) == stat_date:
+        replacing_estimated = (
+            str(df.iloc[-1].get("estimated", False)).strip().lower() == "true"
+        )
+        df = df.iloc[:-1].copy()
+
+    if len(df) == 0:
+        return df, [{
+            "date": stat_date,
+            "assist_total": assist_total,
+            "drive_total": drive_total,
+            "daily_assist": 0,
+            "daily_drive": 0,
+            "ratio": 0,
+            "grab_assist_total": assist_total,
+            "grab_drive_total": drive_total,
+            "estimated": False,
+        }]
+
+    last = df.iloc[-1]
+    previous_date = datetime.fromisoformat(str(last["date"])).date()
+    gap_days = (target_date - previous_date).days
+    if gap_days < 1:
+        raise RuntimeError(
+            f"target date {stat_date} is not after latest stored date {previous_date}"
+        )
+
+    previous_assist_total = int(float(last["assist_total"]))
+    previous_drive_total = int(float(last["drive_total"]))
+    assist_parts = split_integer_evenly(
+        assist_total - previous_assist_total, gap_days
+    )
+    drive_parts = split_integer_evenly(
+        drive_total - previous_drive_total, gap_days
+    )
+
+    estimated = gap_days > 1 or replacing_estimated
+    rows = []
+    running_assist = previous_assist_total
+    running_drive = previous_drive_total
+
+    for offset, (daily_assist, daily_drive) in enumerate(
+        zip(assist_parts, drive_parts), start=1
+    ):
+        running_assist += daily_assist
+        running_drive += daily_drive
+        rows.append({
+            "date": (previous_date + timedelta(days=offset)).isoformat(),
+            "assist_total": running_assist,
+            "drive_total": running_drive,
+            "daily_assist": daily_assist,
+            "daily_drive": daily_drive,
+            "ratio": daily_assist / daily_drive if daily_drive else 0,
+            "grab_assist_total": running_assist,
+            "grab_drive_total": running_drive,
+            "estimated": estimated,
+        })
+
+    return df, rows
+
+
 def main():
     stat_date = get_stat_date()
 
@@ -167,52 +245,23 @@ def main():
             "daily_drive",
             "ratio",
             "grab_assist_total",
-            "grab_drive_total"
+            "grab_drive_total",
+            "estimated",
         ])
 
-    # 避免同一个统计日期重复追加。
-    # 例如当天手动重跑 workflow 时，先删除旧的同日记录，再用最新抓取值重算。
-    if len(df) > 0 and str(df.iloc[-1]["date"]) == stat_date:
-        df = df.iloc[:-1]
+    if "estimated" not in df.columns:
+        df["estimated"] = False
 
-    if len(df) > 0:
-        last = df.iloc[-1]
-        previous_assist_total = int(float(last["assist_total"]))
-        previous_drive_total = int(float(last["drive_total"]))
-        daily_assist = assist_total - previous_assist_total
-        daily_drive = drive_total - previous_drive_total
-    else:
-        # 第一条记录只能作为基准点，没有上一天 02:00 的累计值，所以日增量记为 0。
-        daily_assist = 0
-        daily_drive = 0
-
-    ratio = daily_assist / daily_drive if daily_drive else 0
-
-    new_row = {
-        # 注意：这里不是抓取当天，而是本次差值对应的统计日期。
-        "date": stat_date,
-
-        # 正式统计字段：保存本次 02:00 抓到的累计值，供下一天计算差值使用。
-        "assist_total": assist_total,
-        "drive_total": drive_total,
-
-        # 本统计日的行驶里程 = 本次累计值 - 上一次 02:00 累计值。
-        "daily_assist": daily_assist,
-        "daily_drive": daily_drive,
-        "ratio": ratio,
-
-        # 原始抓取值保留一份，方便以后排查。
-        "grab_assist_total": assist_total,
-        "grab_drive_total": drive_total,
-    }
-
-    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+    df, new_rows = build_rows(df, stat_date, assist_total, drive_total)
+    df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
     df.to_csv(DATA, index=False, encoding="utf-8-sig")
     generate_output_files()
 
     print("抓取成功")
     print("统计日期：", stat_date)
-    print(new_row)
+    print("写入记录数：", len(new_rows))
+    for row in new_rows:
+        print(row)
 
 
 if __name__ == "__main__":

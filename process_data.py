@@ -33,6 +33,14 @@ def _safe_float(value) -> float:
     return float(value)
 
 
+def _safe_bool(value) -> bool:
+    if pd.isna(value):
+        return False
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes"}
+
+
 def load_daily_data() -> pd.DataFrame:
     if not DATA.exists():
         return pd.DataFrame(columns=["date", *NUMERIC_COLUMNS])
@@ -49,6 +57,11 @@ def load_daily_data() -> pd.DataFrame:
             df[col] = 0
         df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
+    if "estimated" not in df.columns:
+        df["estimated"] = False
+    else:
+        df["estimated"] = df["estimated"].map(_safe_bool)
+
     # 以 CSV 中保存的 02:00 累计值为准，重新统一计算每日差值。
     # 第一条只能作为基准点，没有上一天 02:00 的累计值，所以日增量为 0。
     df["daily_assist"] = df["assist_total"].diff().fillna(0).clip(lower=0)
@@ -64,7 +77,7 @@ def load_daily_data() -> pd.DataFrame:
 def build_daily_records(df: pd.DataFrame) -> list[dict]:
     records = []
     for _, r in df.iterrows():
-        records.append({
+        record = {
             "date": str(r["date"]),
             "assist_total": _safe_int(r["assist_total"]),
             "drive_total": _safe_int(r["drive_total"]),
@@ -73,7 +86,10 @@ def build_daily_records(df: pd.DataFrame) -> list[dict]:
             "ratio": _safe_float(r["ratio"]),
             "grab_assist_total": _safe_int(r.get("grab_assist_total", r["assist_total"])),
             "grab_drive_total": _safe_int(r.get("grab_drive_total", r["drive_total"])),
-        })
+        }
+        if _safe_bool(r.get("estimated", False)):
+            record["estimated"] = True
+        records.append(record)
     return records
 
 

@@ -2,48 +2,85 @@ name: Daily Mileage Tracker
 
 on:
   schedule:
-    # GitHub schedule can start late. Start at 21:37 Beijing time,
-    # then wait inside the job and scrape at about 00:10 Beijing time.
-    - cron: "37 13 * * *"
+    # Beijing time: 00:17, 00:47, and 01:17.
+    # Later runs exit immediately when the target date already exists.
+    - cron: "17,47 16 * * *"
+    - cron: "17 17 * * *"
+    # Beijing time: 03:07 health check. It does not scrape or write data.
+    - cron: "7 19 * * *"
   workflow_dispatch:
+    inputs:
+      force:
+        description: Replace today's existing statistics row
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
 
+concurrency:
+  group: daily-mileage-tracker
+  cancel-in-progress: false
+
+env:
+  TZ: Asia/Shanghai
+
 jobs:
-  run:
+  collect:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule != '7 19 * * *'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Sync latest main
-        run: |
-          git pull --rebase origin main
+        run: git pull --rebase origin main
 
-      - name: Wait until target scrape time
+      - name: Check whether collection is needed
+        id: freshness
         shell: bash
+        env:
+          FORCE_RUN: ${{ inputs.force || false }}
         run: |
-          target=$(date -u -d "$(date -u +%F) 16:10:00" +%s)
-          now=$(date -u +%s)
+          expected_date=$(date -d yesterday +%F)
+          latest_date=$(tail -n 1 data.csv | cut -d, -f1 | tr -d '\r')
 
-          if [ "$now" -lt "$target" ]; then
-            wait_seconds=$((target - now))
-            echo "Waiting ${wait_seconds}s until 00:10 Beijing time"
-            sleep "$wait_seconds"
+          echo "Expected date: ${expected_date}"
+          echo "Latest stored date: ${latest_date}"
+
+          if [ "${FORCE_RUN}" = "true" ]; then
+            echo "Manual force run requested"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          elif [ "${latest_date}" = "${expected_date}" ]; then
+            echo "Target date already exists; no work is needed"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          elif [[ "${latest_date}" > "${expected_date}" ]]; then
+            echo "::error::Stored date ${latest_date} is later than expected date ${expected_date}."
+            exit 1
           else
-            late_seconds=$((now - target))
-            echo "Schedule started ${late_seconds}s after 00:10 Beijing time; scraping now"
+            echo "Target date is missing; collection is needed"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: actions/setup-python@v5
+        if: steps.freshness.outputs.should_run == 'true'
         with:
           python-version: "3.11"
 
-      - run: pip install -r requirements.txt
-      - run: python -m playwright install --with-deps chromium
+      - name: Install dependencies
+        if: steps.freshness.outputs.should_run == 'true'
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Test backfill logic
+        if: steps.freshness.outputs.should_run == 'true'
+        run: python -m unittest -v test_reliability.py
 
       - name: Scrape data with retries
+        if: steps.freshness.outputs.should_run == 'true'
         shell: bash
         run: |
           for attempt in 1 2 3; do
@@ -61,12 +98,59 @@ jobs:
           echo "Scrape failed after 3 attempts"
           exit 1
 
-      - name: Commit data
+      - name: Commit and push data
+        if: steps.freshness.outputs.should_run == 'true'
+        shell: bash
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
           git add data.csv daily.json monthly.json summary.json
-          git commit -m "update mileage data and generated json" || echo "no changes"
+          if git diff --cached --quiet; then
+            echo "No data changes"
+            exit 0
+          fi
 
-          git push origin HEAD:main
+          git commit -m "update mileage data and generated json"
+
+          for attempt in 1 2 3; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
+            if [ "$attempt" -lt 3 ]; then
+              echo "Push failed; waiting 20 seconds before retry"
+              sleep 20
+            fi
+          done
+
+          echo "Push failed after 3 attempts"
+          exit 1
+
+  health-check:
+    if: github.event_name == 'schedule' && github.event.schedule == '7 19 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync latest main
+        run: git pull --rebase origin main
+
+      - name: Verify latest statistics date
+        shell: bash
+        run: |
+          expected_date=$(date -d yesterday +%F)
+          latest_date=$(tail -n 1 data.csv | cut -d, -f1 | tr -d '\r')
+
+          echo "Expected date: ${expected_date}"
+          echo "Latest stored date: ${latest_date}"
+
+          if [ "${latest_date}" != "${expected_date}" ]; then
+            echo "::error::Mileage data is stale. Expected ${expected_date}, found ${latest_date}."
+            exit 1
+          fi
+
+          echo "Mileage data is current"
