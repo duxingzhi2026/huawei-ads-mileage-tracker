@@ -3,9 +3,9 @@
     "date": "2026-08-07",
     "assist_total": 13731017657,
     "drive_total": 39676601766,
-    "daily_assist": 86111533,
-    "daily_drive": 204728837,
-    "ratio": 0.4206126223439642,
+    "daily_assist": 43055767,
+    "daily_drive": 102364419,
+    "ratio": 0.42061262517398745,
     "grab_assist_total": 13731017657,
     "grab_drive_total": 39676601766
   },
@@ -17,6 +17,6 @@
     "daily_drive": 709706748,
     "ratio": 0.41567833169313473
   },
-  "daily_count": 99,
+  "daily_count": 100,
   "monthly_count": 5
 }
