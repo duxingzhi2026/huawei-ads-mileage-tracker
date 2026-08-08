@@ -314,9 +314,6 @@
       const total = chartRows.map(r => Number(r.daily_drive || 0) / 100000000);
       const human = total.map((v, i) => Math.max(v - assist[i], 0));
       const ratio = chartRows.map(r => Number(r.ratio || 0) * 100);
-      const estimatedDates = new Set(
-        chartRows.filter(r => r.estimated === true).map(r => r.date)
-      );
 
       const textColor = "#303845";
       const mutedTextColor = "#6b7280";
@@ -336,8 +333,6 @@
         backgroundColor: "transparent",
         title: {
           text: mode === "daily" ? "每日ADS新增里程" : "每月ADS新增里程",
-          subtext: mode === "daily" && estimatedDates.size ? "* 为自动平均补齐的估算数据" : "",
-          subtextStyle: { color: "#d97706", fontSize: 12 },
           textStyle: { color: textColor, fontSize: 18 }
         },
         tooltip: {
@@ -365,10 +360,7 @@
         xAxis: {
           type: "category",
           data: dates,
-          axisLabel: {
-            color: mutedTextColor,
-            formatter: value => estimatedDates.has(value) ? `${value}*` : value
-          },
+          axisLabel: { color: mutedTextColor },
           axisLine: { lineStyle: { color: gridColor } }
         },
         yAxis: {
@@ -400,8 +392,6 @@
         backgroundColor: "transparent",
         title: {
           text: mode === "daily" ? "每日ADS辅助驾驶占比趋势" : "每月ADS辅助驾驶占比趋势",
-          subtext: mode === "daily" && estimatedDates.size ? "* 为自动平均补齐的估算数据" : "",
-          subtextStyle: { color: "#d97706", fontSize: 12 },
           textStyle: { color: textColor, fontSize: 18 }
         },
         tooltip: {
@@ -414,10 +404,7 @@
         xAxis: {
           type: "category",
           data: dates,
-          axisLabel: {
-            color: mutedTextColor,
-            formatter: value => estimatedDates.has(value) ? `${value}*` : value
-          },
+          axisLabel: { color: mutedTextColor },
           axisLine: { lineStyle: { color: gridColor } }
         },
         yAxis: {
