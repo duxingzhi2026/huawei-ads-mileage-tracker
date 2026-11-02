@@ -4,7 +4,7 @@ import pandas as pd
 
 from scrape import build_rows, split_integer_evenly
 from process_tesla_data import build_tesla_daily_records, build_tesla_monthly_records
-from scrape_tesla import parse_counter_text
+from scrape_tesla import parse_tesla_baseline
 
 
 class ReliabilityTests(unittest.TestCase):
@@ -68,21 +68,28 @@ class ReliabilityTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertTrue(rows[0]["estimated"])
 
-    def test_tesla_snapshot_differences_and_monthly_sum(self):
+    def test_tesla_baseline_series_and_monthly_average(self):
         source = pd.DataFrame([
-            {"date": "2026-10-31", "fsd_total_km": 1_000},
-            {"date": "2026-11-01", "fsd_total_km": 1_120},
-            {"date": "2026-11-02", "fsd_total_km": 1_270},
+            {"date": "2026-10-31", "base_fsd_miles": 1_000, "base_time_utc": "2026-10-01T00:00:00Z", "average_daily_fsd_km": 100},
+            {"date": "2026-11-01", "base_fsd_miles": 1_100, "base_time_utc": "2026-11-01T00:00:00Z", "average_daily_fsd_km": 120},
+            {"date": "2026-11-02", "base_fsd_miles": 1_200, "base_time_utc": "2026-11-02T00:00:00Z", "average_daily_fsd_km": 150},
         ])
         daily = build_tesla_daily_records(source)
         monthly = build_tesla_monthly_records(daily)
 
-        self.assertEqual([row["daily_fsd_km"] for row in daily], [0, 120, 150])
-        self.assertEqual(monthly[0]["monthly_fsd_km"], 0)
-        self.assertEqual(monthly[1]["monthly_fsd_km"], 270)
+        self.assertEqual([row["average_daily_fsd_km"] for row in daily], [100, 120, 150])
+        self.assertEqual(monthly[0]["average_daily_fsd_km"], 100)
+        self.assertEqual(monthly[1]["average_daily_fsd_km"], 135)
 
-    def test_parses_rendered_tesla_counter(self):
-        self.assertEqual(parse_counter_text("27,325,650,079"), 27_325_650_079)
+    def test_parses_tesla_server_baseline(self):
+        baseline = parse_tesla_baseline("""
+          const totalMilesStart = 16485475664;
+          const startEpochTime = new Date('2026-10-22T08:14:00Z').getTime();
+          const totalDistancePerMillisecondAdded = useKm ? (22 / 42) * KM_PER_MILE : 22 / 42;
+        """)
+        self.assertEqual(baseline["base_fsd_miles"], 16_485_475_664)
+        self.assertEqual(baseline["base_time_utc"], "2026-10-22T08:14:00Z")
+        self.assertAlmostEqual(baseline["average_daily_fsd_km"], 72_834_130.29, places=2)
 
 
 if __name__ == "__main__":

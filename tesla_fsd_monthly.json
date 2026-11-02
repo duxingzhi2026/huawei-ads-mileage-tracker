@@ -1,7 +1,8 @@
 [
   {
     "date": "2026-11",
-    "fsd_total_km": 27325650079,
-    "monthly_fsd_km": 0
+    "base_fsd_miles": 16485475664,
+    "base_time_utc": "2026-10-22T08:14:00Z",
+    "average_daily_fsd_km": 72834130.29
   }
 ]

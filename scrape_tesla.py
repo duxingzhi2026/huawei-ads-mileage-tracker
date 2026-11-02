@@ -1,54 +1,66 @@
-"""Collect Tesla's rendered, real-time global FSD mileage counter."""
+"""Collect Tesla's server-published FSD mileage baseline and average rate."""
 
 from datetime import datetime
 from pathlib import Path
 import re
+from urllib.parse import urljoin
+from urllib.request import Request, urlopen
 
 from process_tesla_data import generate_tesla_output_files, upsert_tesla_snapshot
 from scrape import TIMEZONE
 
 TESLA_URL = "https://www.tesla.cn/tesla-assisted-driving/safety#data-updated"
 TESLA_DATA = Path("tesla_fsd.csv")
+KM_PER_MILE = 1.60934
 
 
-def parse_counter_text(text: str) -> int:
-    digits = re.sub(r"[^0-9]", "", str(text))
-    if not digits:
-        raise RuntimeError("Tesla FSD 实时计数器为空或不是数字")
-    return int(digits)
+def fetch_text(url: str) -> str:
+    request = Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; MileageTracker/1.0)"})
+    with urlopen(request, timeout=60) as response:
+        return response.read().decode("utf-8", errors="replace")
 
 
-def scrape_tesla_fsd_total() -> int:
-    """Read the hydrated DOM and verify the displayed counter is still increasing."""
-    from playwright.sync_api import sync_playwright
+def find_counter_script_url(page_html: str) -> str:
+    match = re.search(r'<script[^>]+src="([^"]+scope=footer[^\"]*delta=0[^\"]*)"', page_html)
+    if not match:
+        raise RuntimeError("Tesla FSD 计数器脚本地址未找到")
+    return urljoin(TESLA_URL, match.group(1).replace("&amp;", "&"))
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page(locale="zh-CN", viewport={"width": 1600, "height": 1200})
-        page.goto(TESLA_URL, wait_until="networkidle", timeout=120000)
-        counter = page.locator("#total-fsd-mileage")
-        counter.wait_for(state="visible", timeout=30000)
-        first = parse_counter_text(counter.inner_text())
-        page.wait_for_timeout(3000)
-        total = parse_counter_text(counter.inner_text())
-        browser.close()
 
-    if total <= first:
-        raise RuntimeError(
-            f"Tesla FSD 计数器未在渲染页面中递增（{first:,} → {total:,}），拒绝写入快照"
-        )
-    print("Tesla FSD 全球累计：", total, "公里")
-    return total
+def parse_tesla_baseline(script: str) -> dict:
+    miles_match = re.search(r"const totalMilesStart\s*=\s*([\d.]+)", script)
+    time_match = re.search(r"const startEpochTime\s*=\s*new Date\('([^']+)'\)", script)
+    rate_match = re.search(
+        r"const totalDistancePerMillisecondAdded\s*=\s*useKm\s*\?\s*\((\d+)\s*/\s*(\d+)\)",
+        script,
+    )
+    if not (miles_match and time_match and rate_match):
+        raise RuntimeError("Tesla FSD 基准参数未找到，页面脚本结构可能已经变化")
+
+    miles_per_ms = int(rate_match.group(1)) / int(rate_match.group(2))
+    return {
+        "base_fsd_miles": int(float(miles_match.group(1))),
+        "base_time_utc": time_match.group(1),
+        "average_daily_fsd_km": miles_per_ms * 86_400_000 * KM_PER_MILE,
+    }
+
+
+def scrape_tesla_baseline() -> dict:
+    page_html = fetch_text(TESLA_URL)
+    script_url = find_counter_script_url(page_html)
+    baseline = parse_tesla_baseline(fetch_text(script_url))
+    baseline["source_url"] = script_url
+    print("Tesla FSD 基准：", baseline)
+    return baseline
 
 
 def main():
     now = datetime.now(TIMEZONE)
-    total = scrape_tesla_fsd_total()
-    # 每日固定采集时点在下午；快照归属其当天。
+    baseline = scrape_tesla_baseline()
     upsert_tesla_snapshot(
         TESLA_DATA,
         now.date().isoformat(),
-        total,
+        baseline,
         now.isoformat(timespec="seconds"),
     )
     generate_tesla_output_files()

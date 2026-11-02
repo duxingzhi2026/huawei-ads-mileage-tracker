@@ -448,12 +448,10 @@
       });
 
       const teslaRows = getTeslaDisplayRows();
-      // 第一条实时总里程快照只是建档基准，尚不能计算新增里程。
-      const teslaChartRows = teslaRows.slice(1);
+      // 每条记录都是 Tesla 服务器脚本在当天公布的平均日里程参数。
+      const teslaChartRows = teslaRows;
       const teslaDates = teslaChartRows.map(r => r.date);
-      const teslaMileage = teslaChartRows.map(r => Number(
-        mode === "daily" ? r.daily_fsd_km : r.monthly_fsd_km
-      ) / 100000000);
+      const teslaMileage = teslaChartRows.map(r => Number(r.average_daily_fsd_km || 0) / 100000000);
 
       if (!teslaFsdChart) {
         teslaFsdChart = echarts.init(document.getElementById("teslaFsdChart"));
@@ -462,29 +460,17 @@
       teslaFsdChart.setOption({
         backgroundColor: "transparent",
         title: {
-          text: mode === "daily" ? "每日特斯拉 FSD 新增里程（全球）" : "每月特斯拉 FSD 新增里程（全球）",
-          subtext: "Tesla 公开实时累计计数器；不含中国大陆",
+          text: mode === "daily" ? "特斯拉 FSD 平均每日里程（全球）" : "特斯拉 FSD 每月平均每日里程（全球）",
+          subtext: "基于 Tesla 服务器公布的基准参数计算；不含中国大陆",
           textStyle: { color: textColor, fontSize: 18 },
           subtextStyle: { color: mutedTextColor, fontSize: 12 }
         },
-        graphic: {
-          id: "tesla-baseline-hint",
-          type: "text",
-          left: "center",
-          top: "middle",
-          invisible: teslaChartRows.length > 0,
-          style: {
-            text: "正在建立实时快照基准，下一次定时采集后显示新增里程",
-            fill: mutedTextColor,
-            font: "14px sans-serif"
-          }
-        },
         tooltip: {
           trigger: "axis",
-          axisPointer: { type: "shadow" },
+          axisPointer: { type: "line" },
           formatter: function(params) {
             const kilometres = Number(params[0].value) * 100000000;
-            return `${params[0].axisValue}<br>FSD 新增里程：${numberFormat(Math.round(kilometres))} 公里<br>${Number(params[0].value).toFixed(4)} 亿公里`;
+            return `${params[0].axisValue}<br>平均每日 FSD 里程：${numberFormat(Math.round(kilometres))} 公里<br>${Number(params[0].value).toFixed(4)} 亿公里/天`;
           }
         },
         grid: { left: 64, right: 26, top: 92, bottom: 52 },
@@ -496,16 +482,21 @@
         },
         yAxis: {
           type: "value",
-          name: "亿公里",
+          name: "亿公里/天",
           nameTextStyle: { color: mutedTextColor },
           axisLabel: { color: mutedTextColor },
           splitLine: { lineStyle: { color: gridColor } }
         },
         series: [{
-          name: "FSD 新增里程",
-          type: "bar",
+          name: "平均每日 FSD 里程",
+          type: "line",
           data: teslaMileage,
-          itemStyle: { color: "#e82127" }
+          smooth: true,
+          showSymbol: true,
+          symbolSize: 7,
+          lineStyle: { width: 3, color: "#e82127" },
+          itemStyle: { color: "#e82127" },
+          areaStyle: { color: "rgba(232, 33, 39, 0.10)" }
         }]
       });
     }

@@ -1,4 +1,4 @@
-"""Build daily and monthly FSD increments from Tesla's real-time total counter."""
+"""Build Tesla FSD average-daily-mileage series from server-published baselines."""
 
 from __future__ import annotations
 
@@ -10,52 +10,58 @@ import pandas as pd
 TESLA_DATA = Path("tesla_fsd.csv")
 TESLA_DAILY_JSON = Path("tesla_fsd_daily.json")
 TESLA_MONTHLY_JSON = Path("tesla_fsd_monthly.json")
+DATA_COLUMNS = [
+    "date", "base_fsd_miles", "base_time_utc", "average_daily_fsd_km",
+    "captured_at", "source_url",
+]
 
 
-def upsert_tesla_snapshot(path: Path, date: str, total_km: int, captured_at: str) -> None:
-    """Store one fixed-time snapshot for the statistical day, replacing a retry."""
-    columns = ["date", "fsd_total_km", "captured_at"]
+def upsert_tesla_snapshot(path: Path, date: str, baseline: dict, captured_at: str) -> None:
+    """Store one daily copy of Tesla's server-supplied counter parameters."""
     if path.exists():
         df = pd.read_csv(path)
     else:
-        df = pd.DataFrame(columns=columns)
+        df = pd.DataFrame(columns=DATA_COLUMNS)
 
-    for column in columns:
+    for column in DATA_COLUMNS:
         if column not in df.columns:
             df[column] = ""
-
+    # 旧版记录的是浏览器外推后的累计值；新口径只保留服务器基准参数。
+    df = df.reindex(columns=DATA_COLUMNS)
     df = df[df["date"].astype(str) != date]
     df = pd.concat([df, pd.DataFrame([{
         "date": date,
-        "fsd_total_km": int(total_km),
+        "base_fsd_miles": int(baseline["base_fsd_miles"]),
+        "base_time_utc": baseline["base_time_utc"],
+        "average_daily_fsd_km": round(float(baseline["average_daily_fsd_km"]), 2),
         "captured_at": captured_at,
-    }])], ignore_index=True)
-    df = df.sort_values("date")
+        "source_url": baseline.get("source_url", ""),
+    }])], ignore_index=True).sort_values("date")
     df.to_csv(path, index=False, encoding="utf-8-sig")
 
 
 def load_tesla_data(path: Path = TESLA_DATA) -> pd.DataFrame:
     if not path.exists():
-        return pd.DataFrame(columns=["date", "fsd_total_km", "captured_at"])
-
+        return pd.DataFrame(columns=DATA_COLUMNS)
     df = pd.read_csv(path)
     if df.empty:
         return df
+    for column in DATA_COLUMNS:
+        if column not in df.columns:
+            df[column] = ""
     df["date"] = df["date"].astype(str)
-    df["fsd_total_km"] = pd.to_numeric(df["fsd_total_km"], errors="coerce").fillna(0)
+    df["base_fsd_miles"] = pd.to_numeric(df["base_fsd_miles"], errors="coerce").fillna(0)
+    df["average_daily_fsd_km"] = pd.to_numeric(df["average_daily_fsd_km"], errors="coerce").fillna(0)
     return df.sort_values("date").drop_duplicates(subset=["date"], keep="last")
 
 
 def build_tesla_daily_records(df: pd.DataFrame) -> list[dict]:
-    if df.empty:
-        return []
-    totals = df["fsd_total_km"].astype("int64")
-    increments = totals.diff().fillna(0).clip(lower=0).astype("int64")
     return [{
         "date": str(row.date),
-        "fsd_total_km": int(row.fsd_total_km),
-        "daily_fsd_km": int(increments.loc[index]),
-    } for index, row in df.iterrows()]
+        "base_fsd_miles": int(row.base_fsd_miles),
+        "base_time_utc": str(row.base_time_utc),
+        "average_daily_fsd_km": float(row.average_daily_fsd_km),
+    } for _, row in df.iterrows()]
 
 
 def build_tesla_monthly_records(daily: list[dict]) -> list[dict]:
@@ -68,8 +74,9 @@ def build_tesla_monthly_records(daily: list[dict]) -> list[dict]:
         last = group.iloc[-1]
         records.append({
             "date": month,
-            "fsd_total_km": int(last["fsd_total_km"]),
-            "monthly_fsd_km": int(group["daily_fsd_km"].sum()),
+            "base_fsd_miles": int(last["base_fsd_miles"]),
+            "base_time_utc": str(last["base_time_utc"]),
+            "average_daily_fsd_km": float(group["average_daily_fsd_km"].mean()),
         })
     return records
 
@@ -80,9 +87,8 @@ def _write_json(path: Path, data: list[dict]) -> None:
 
 def generate_tesla_output_files() -> None:
     daily = build_tesla_daily_records(load_tesla_data())
-    monthly = build_tesla_monthly_records(daily)
     _write_json(TESLA_DAILY_JSON, daily)
-    _write_json(TESLA_MONTHLY_JSON, monthly)
+    _write_json(TESLA_MONTHLY_JSON, build_tesla_monthly_records(daily))
     print("已生成 tesla_fsd_daily.json / tesla_fsd_monthly.json")
 
 
