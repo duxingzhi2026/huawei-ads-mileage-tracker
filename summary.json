@@ -1,22 +1,22 @@
 {
   "latest_daily": {
-    "date": "2026-11-02",
-    "assist_total": 17393489103,
-    "drive_total": 48555041650,
-    "daily_assist": 36909185,
-    "daily_drive": 92964912,
-    "ratio": 0.39702274983060276,
-    "grab_assist_total": 17393489103,
-    "grab_drive_total": 48555041650
+    "date": "2026-11-03",
+    "assist_total": 17429212942,
+    "drive_total": 48645815528,
+    "daily_assist": 35723839,
+    "daily_drive": 90773878,
+    "ratio": 0.3935475688281159,
+    "grab_assist_total": 17429212942,
+    "grab_drive_total": 48645815528
   },
   "latest_monthly": {
     "date": "2026-11",
-    "assist_total": 17393489103,
-    "drive_total": 48555041650,
-    "daily_assist": 79055107,
-    "daily_drive": 191848186,
-    "ratio": 0.41207117277616584
+    "assist_total": 17429212942,
+    "drive_total": 48645815528,
+    "daily_assist": 114778946,
+    "daily_drive": 282622064,
+    "ratio": 0.40612167491636464
   },
-  "daily_count": 187,
+  "daily_count": 188,
   "monthly_count": 8
 }
