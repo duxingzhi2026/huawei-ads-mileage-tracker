@@ -102,6 +102,25 @@
       color: white;
     }
 
+    .hourly-filter {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 8px;
+      color: #5f6472;
+      font-size: 14px;
+    }
+
+    .hourly-filter select {
+      border: 1px solid #f2b8c4;
+      border-radius: 999px;
+      background: #fff;
+      color: #303845;
+      padding: 7px 14px;
+      font: inherit;
+    }
+
     .chart-box {
       background: #fff;
       border: 1px solid #ffe0e6;
@@ -279,6 +298,10 @@
   </div>
 
   <div class="chart-box">
+    <div class="hourly-filter">
+      <label for="hourlyMonthSelect">统计月份</label>
+      <select id="hourlyMonthSelect" aria-label="选择小时统计月份"></select>
+    </div>
     <div id="hourlyBarChart"></div>
   </div>
 
@@ -293,7 +316,8 @@
   <script>
     let dailyRows = [];
     let monthlyRows = [];
-    let hourlyData = { hours: [], window_days: 30 };
+    let hourlyData = { months: [], latest_month: null };
+    let selectedHourlyMonth = null;
     let mode = "daily";
     let barChart = null;
     let lineChart = null;
@@ -454,8 +478,9 @@
     }
 
     function renderHourlyCharts() {
+      const monthData = (hourlyData.months || []).find(row => row.month === selectedHourlyMonth);
       const slots = Array.from({ length: 24 }, (_, hour) =>
-        (hourlyData.hours || []).find(row => Number(row.hour) === hour) || null
+        (monthData?.hours || []).find(row => Number(row.hour) === hour) || null
       );
       const labels = slots.map((_, hour) => `${String(hour).padStart(2, "0")}:00`);
       const assist = slots.map(row => row ? Number(row.assist_km || 0) / 10000 : null);
@@ -469,9 +494,9 @@
       if (!hourlyBarChart) hourlyBarChart = echarts.init(document.getElementById("hourlyBarChart"));
       if (!hourlyRatioChart) hourlyRatioChart = echarts.init(document.getElementById("hourlyRatioChart"));
 
-      const subtitle = hourlyData.hours && hourlyData.hours.length
-        ? `近${hourlyData.window_days || 30}日，按有效采样时长加权平均｜${hourlyData.note || ""}`
-        : "小时数据正在积累；满 30 日后将形成完整滚动均值";
+      const subtitle = monthData
+        ? `${selectedHourlyMonth} 自然月，按有效采样时长加权平均｜${hourlyData.note || ""}`
+        : "该月暂无足够的小时采样数据";
 
       hourlyBarChart.setOption({
         title: { text: "每小时华为智驾里程", subtext: subtitle, textStyle: { color: textColor, fontSize: 18 }, subtextStyle: { color: mutedTextColor, fontSize: 12 } },
@@ -507,6 +532,37 @@
       });
     }
 
+    function setupHourlyMonthSelector() {
+      const select = document.getElementById("hourlyMonthSelect");
+      const months = hourlyData.months || [];
+      select.innerHTML = "";
+      if (!months.length) {
+        select.add(new Option("暂无数据", ""));
+        select.disabled = true;
+        selectedHourlyMonth = null;
+        return;
+      }
+      const currentMonthParts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit"
+      }).formatToParts(new Date());
+      const currentMonthValues = Object.fromEntries(
+        currentMonthParts.filter(part => part.type !== "literal").map(part => [part.type, part.value])
+      );
+      const currentMonth = `${currentMonthValues.year}-${currentMonthValues.month}`;
+      const available = new Set(months.map(row => row.month));
+      selectedHourlyMonth = available.has(currentMonth) ? currentMonth : hourlyData.latest_month || months[months.length - 1].month;
+      [...months].reverse().forEach(row => {
+        const option = new Option(`${row.month}月`, row.month);
+        option.selected = row.month === selectedHourlyMonth;
+        select.add(option);
+      });
+      select.disabled = false;
+      select.onchange = () => {
+        selectedHourlyMonth = select.value;
+        renderHourlyCharts();
+      };
+    }
+
     async function loadJson(path) {
       const res = await fetch(`${path}?t=${Date.now()}`);
       if (!res.ok) {
@@ -521,6 +577,8 @@
         loadJson("monthly.json"),
         loadJson("hourly.json")
       ]);
+
+      setupHourlyMonthSelector();
 
       document.getElementById("dailyBtn").onclick = () => {
         mode = "daily";

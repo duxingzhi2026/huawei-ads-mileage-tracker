@@ -74,8 +74,8 @@ class ReliabilityTests(unittest.TestCase):
             {"captured_at": "2026-11-01T03:00:00Z", "assist_total": 400, "drive_total": 800},
         ])
         snapshots["captured_at"] = pd.to_datetime(snapshots["captured_at"], utc=True)
-        payload = build_hourly_payload(snapshots, window_days=30)
-        by_hour = {row["hour"]: row for row in payload["hours"]}
+        payload = build_hourly_payload(snapshots)
+        by_hour = {row["hour"]: row for row in payload["months"][0]["hours"]}
         # 08:50-09:10 Beijing is divided across two hours, then normalised by
         # observed coverage. The 110-minute gap is omitted, not made up.
         self.assertEqual(payload["skipped_intervals"], 1)
