@@ -4,6 +4,7 @@ import pandas as pd
 
 from scrape import build_rows, split_integer_evenly
 from process_tesla_data import build_tesla_daily_records, build_tesla_monthly_records
+from process_hourly_data import build_hourly_payload
 from scrape_tesla import parse_tesla_baseline
 
 
@@ -90,6 +91,21 @@ class ReliabilityTests(unittest.TestCase):
         self.assertEqual(baseline["base_fsd_miles"], 16_485_475_664)
         self.assertEqual(baseline["base_time_utc"], "2026-10-22T08:14:00Z")
         self.assertAlmostEqual(baseline["average_daily_fsd_km"], 72_834_130.29, places=2)
+
+    def test_hourly_aggregation_uses_actual_interval_and_omits_long_gaps(self):
+        snapshots = pd.DataFrame([
+            {"captured_at": "2026-11-01T00:50:00Z", "assist_total": 100, "drive_total": 200},
+            {"captured_at": "2026-11-01T01:10:00Z", "assist_total": 160, "drive_total": 320},
+            {"captured_at": "2026-11-01T03:00:00Z", "assist_total": 400, "drive_total": 800},
+        ])
+        snapshots["captured_at"] = pd.to_datetime(snapshots["captured_at"], utc=True)
+        payload = build_hourly_payload(snapshots, window_days=30)
+        by_hour = {row["hour"]: row for row in payload["hours"]}
+        # 08:50-09:10 Beijing is divided across two hours, then normalised by
+        # observed coverage. The 110-minute gap is omitted, not made up.
+        self.assertEqual(payload["skipped_intervals"], 1)
+        self.assertAlmostEqual(by_hour[8]["assist_km"], 180.0)
+        self.assertAlmostEqual(by_hour[9]["assist_km"], 180.0)
 
 
 if __name__ == "__main__":

@@ -113,7 +113,9 @@
 
     #barChart,
     #lineChart,
-    #teslaFsdChart {
+    #teslaFsdChart,
+    #hourlyBarChart,
+    #hourlyRatioChart {
       width: 100%;
       height: 420px;
     }
@@ -160,7 +162,9 @@
 
       #barChart,
       #lineChart,
-      #teslaFsdChart {
+      #teslaFsdChart,
+      #hourlyBarChart,
+      #hourlyRatioChart {
         height: 360px;
       }
     }
@@ -279,6 +283,14 @@
     <div id="teslaFsdChart"></div>
   </div>
 
+  <div class="chart-box">
+    <div id="hourlyBarChart"></div>
+  </div>
+
+  <div class="chart-box">
+    <div id="hourlyRatioChart"></div>
+  </div>
+
   <div class="footer">
     * 本页面为自动化数据追踪展示。作者：粥底火锅
   </div>
@@ -288,10 +300,13 @@
     let monthlyRows = [];
     let teslaDailyRows = [];
     let teslaMonthlyRows = [];
+    let hourlyData = { hours: [], window_days: 30 };
     let mode = "daily";
     let barChart = null;
     let lineChart = null;
     let teslaFsdChart = null;
+    let hourlyBarChart = null;
+    let hourlyRatioChart = null;
 
     function numberFormat(n) {
       return Number(n || 0).toLocaleString();
@@ -499,6 +514,62 @@
           areaStyle: { color: "rgba(232, 33, 39, 0.10)" }
         }]
       });
+
+      renderHourlyCharts();
+    }
+
+    function renderHourlyCharts() {
+      const slots = Array.from({ length: 24 }, (_, hour) =>
+        (hourlyData.hours || []).find(row => Number(row.hour) === hour) || null
+      );
+      const labels = slots.map((_, hour) => `${String(hour).padStart(2, "0")}:00`);
+      const assist = slots.map(row => row ? Number(row.assist_km || 0) / 10000 : null);
+      const total = slots.map(row => row ? Number(row.drive_km || 0) / 10000 : null);
+      const ratio = slots.map(row => row ? Number(row.ratio || 0) * 100 : null);
+      const coverage = slots.map(row => row ? Number(row.coverage_days || 0) : 0);
+      const textColor = "#303845";
+      const mutedTextColor = "#6b7280";
+      const gridColor = "#eef1f5";
+
+      if (!hourlyBarChart) hourlyBarChart = echarts.init(document.getElementById("hourlyBarChart"));
+      if (!hourlyRatioChart) hourlyRatioChart = echarts.init(document.getElementById("hourlyRatioChart"));
+
+      const subtitle = hourlyData.hours && hourlyData.hours.length
+        ? `近${hourlyData.window_days || 30}日，按有效采样时长加权平均｜${hourlyData.note || ""}`
+        : "小时数据正在积累；满 30 日后将形成完整滚动均值";
+
+      hourlyBarChart.setOption({
+        title: { text: "每小时华为智驾里程", subtext: subtitle, textStyle: { color: textColor, fontSize: 18 }, subtextStyle: { color: mutedTextColor, fontSize: 12 } },
+        tooltip: {
+          trigger: "axis",
+          axisPointer: { type: "shadow" },
+          formatter: params => {
+            const index = params[0].dataIndex;
+            if (!slots[index]) return `${labels[index]}<br>暂无有效采样`;
+            return `${labels[index]}<br>总里程：${Number(total[index]).toFixed(2)} 万公里<br>智驾里程：${Number(assist[index]).toFixed(2)} 万公里<br>有效覆盖：${coverage[index].toFixed(1)} 天`;
+          }
+        },
+        legend: { data: ["总里程", "智驾里程"], top: 54, textStyle: { color: mutedTextColor } },
+        grid: { left: 64, right: 26, top: 102, bottom: 52 },
+        xAxis: { type: "category", data: labels, axisLabel: { color: mutedTextColor }, axisLine: { lineStyle: { color: gridColor } } },
+        yAxis: { type: "value", name: "万公里/小时", nameTextStyle: { color: mutedTextColor }, axisLabel: { color: mutedTextColor }, splitLine: { lineStyle: { color: gridColor } } },
+        series: [
+          { name: "总里程", type: "bar", data: total, itemStyle: { color: "#9aa6b2" }, barMaxWidth: 24 },
+          { name: "智驾里程", type: "bar", data: assist, itemStyle: { color: "#ff2442" }, barMaxWidth: 24 }
+        ]
+      });
+
+      hourlyRatioChart.setOption({
+        title: { text: "每小时智驾里程比例", subtext: subtitle, textStyle: { color: textColor, fontSize: 18 }, subtextStyle: { color: mutedTextColor, fontSize: 12 } },
+        tooltip: { trigger: "axis", formatter: params => {
+          const index = params[0].dataIndex;
+          return slots[index] ? `${labels[index]}<br>智驾里程比例：${Number(ratio[index]).toFixed(2)}%<br>有效覆盖：${coverage[index].toFixed(1)} 天` : `${labels[index]}<br>暂无有效采样`;
+        } },
+        grid: { left: 64, right: 26, top: 82, bottom: 52 },
+        xAxis: { type: "category", data: labels, axisLabel: { color: mutedTextColor }, axisLine: { lineStyle: { color: gridColor } } },
+        yAxis: { type: "value", name: "%", min: 30, max: 55, nameTextStyle: { color: mutedTextColor }, axisLabel: { color: mutedTextColor }, splitLine: { lineStyle: { color: gridColor } } },
+        series: [{ name: "智驾里程比例", type: "line", smooth: true, connectNulls: false, showSymbol: true, data: ratio, lineStyle: { width: 3, color: "#ff2442" }, itemStyle: { color: "#ff2442" }, areaStyle: { color: "rgba(255, 36, 66, 0.12)" } }]
+      });
     }
 
     async function loadJson(path) {
@@ -510,11 +581,12 @@
     }
 
     async function main() {
-      [dailyRows, monthlyRows, teslaDailyRows, teslaMonthlyRows] = await Promise.all([
+      [dailyRows, monthlyRows, teslaDailyRows, teslaMonthlyRows, hourlyData] = await Promise.all([
         loadJson("daily.json"),
         loadJson("monthly.json"),
         loadJson("tesla_fsd_daily.json"),
-        loadJson("tesla_fsd_monthly.json")
+        loadJson("tesla_fsd_monthly.json"),
+        loadJson("hourly.json")
       ]);
 
       document.getElementById("dailyBtn").onclick = () => {
@@ -537,6 +609,8 @@
         if (barChart) barChart.resize();
         if (lineChart) lineChart.resize();
         if (teslaFsdChart) teslaFsdChart.resize();
+        if (hourlyBarChart) hourlyBarChart.resize();
+        if (hourlyRatioChart) hourlyRatioChart.resize();
       });
     }
 

@@ -1,0 +1,54 @@
+name: Hourly Mileage Tracker
+
+on:
+  schedule:
+    # Five-minute samples are aggregated into hour-of-day averages.  Irregular
+    # execution time is handled from each sample's actual timestamp.
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hourly-mileage-tracker
+  cancel-in-progress: false
+
+env:
+  TZ: Asia/Shanghai
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sync latest main
+        run: git pull --rebase origin main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+      - name: Test hourly aggregation
+        run: python -m unittest -v test_reliability.py
+      - name: Capture hourly snapshot with retries
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if python scrape_hourly.py; then exit 0; fi
+            [ "$attempt" -lt 3 ] && sleep 120
+          done
+          exit 1
+      - name: Commit and push hourly data
+        shell: bash
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add hourly.csv hourly.json
+          git diff --cached --quiet && exit 0
+          git commit -m "update hourly mileage data"
+          git pull --rebase origin main
+          git push origin HEAD:main
