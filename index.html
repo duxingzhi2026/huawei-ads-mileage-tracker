@@ -113,7 +113,6 @@
 
     #barChart,
     #lineChart,
-    #teslaFsdChart,
     #hourlyBarChart,
     #hourlyRatioChart {
       width: 100%;
@@ -162,7 +161,6 @@
 
       #barChart,
       #lineChart,
-      #teslaFsdChart,
       #hourlyBarChart,
       #hourlyRatioChart {
         height: 360px;
@@ -236,7 +234,6 @@
   /* 图表高度 */
   #barChart,
   #lineChart,
-  #teslaFsdChart,
   #hourlyBarChart,
   #hourlyRatioChart {
     height: 300px;
@@ -282,10 +279,6 @@
   </div>
 
   <div class="chart-box">
-    <div id="teslaFsdChart"></div>
-  </div>
-
-  <div class="chart-box">
     <div id="hourlyBarChart"></div>
   </div>
 
@@ -300,13 +293,10 @@
   <script>
     let dailyRows = [];
     let monthlyRows = [];
-    let teslaDailyRows = [];
-    let teslaMonthlyRows = [];
     let hourlyData = { hours: [], window_days: 30 };
     let mode = "daily";
     let barChart = null;
     let lineChart = null;
-    let teslaFsdChart = null;
     let hourlyBarChart = null;
     let hourlyRatioChart = null;
 
@@ -320,10 +310,6 @@
 
     function getDisplayRows() {
       return mode === "monthly" ? monthlyRows : dailyRows;
-    }
-
-    function getTeslaDisplayRows() {
-      return mode === "monthly" ? teslaMonthlyRows : teslaDailyRows;
     }
 
     function render() {
@@ -464,59 +450,6 @@
         ]
       });
 
-      const teslaRows = getTeslaDisplayRows();
-      // 每条记录都是 Tesla 服务器脚本在当天公布的平均日里程参数。
-      const teslaChartRows = teslaRows;
-      const teslaDates = teslaChartRows.map(r => r.date);
-      const teslaMileage = teslaChartRows.map(r => Number(r.average_daily_fsd_km || 0) / 100000000);
-
-      if (!teslaFsdChart) {
-        teslaFsdChart = echarts.init(document.getElementById("teslaFsdChart"));
-      }
-
-      teslaFsdChart.setOption({
-        backgroundColor: "transparent",
-        title: {
-          text: mode === "daily" ? "特斯拉 FSD 平均每日里程（全球）" : "特斯拉 FSD 每月平均每日里程（全球）",
-          subtext: "基于 Tesla 服务器公布的基准参数计算；不含中国大陆",
-          textStyle: { color: textColor, fontSize: 18 },
-          subtextStyle: { color: mutedTextColor, fontSize: 12 }
-        },
-        tooltip: {
-          trigger: "axis",
-          axisPointer: { type: "line" },
-          formatter: function(params) {
-            const kilometres = Number(params[0].value) * 100000000;
-            return `${params[0].axisValue}<br>平均每日 FSD 里程：${numberFormat(Math.round(kilometres))} 公里<br>${Number(params[0].value).toFixed(4)} 亿公里/天`;
-          }
-        },
-        grid: { left: 64, right: 26, top: 92, bottom: 52 },
-        xAxis: {
-          type: "category",
-          data: teslaDates,
-          axisLabel: { color: mutedTextColor },
-          axisLine: { lineStyle: { color: gridColor } }
-        },
-        yAxis: {
-          type: "value",
-          name: "亿公里/天",
-          nameTextStyle: { color: mutedTextColor },
-          axisLabel: { color: mutedTextColor },
-          splitLine: { lineStyle: { color: gridColor } }
-        },
-        series: [{
-          name: "平均每日 FSD 里程",
-          type: "line",
-          data: teslaMileage,
-          smooth: true,
-          showSymbol: true,
-          symbolSize: 7,
-          lineStyle: { width: 3, color: "#e82127" },
-          itemStyle: { color: "#e82127" },
-          areaStyle: { color: "rgba(232, 33, 39, 0.10)" }
-        }]
-      });
-
       renderHourlyCharts();
     }
 
@@ -583,11 +516,9 @@
     }
 
     async function main() {
-      [dailyRows, monthlyRows, teslaDailyRows, teslaMonthlyRows, hourlyData] = await Promise.all([
+      [dailyRows, monthlyRows, hourlyData] = await Promise.all([
         loadJson("daily.json"),
         loadJson("monthly.json"),
-        loadJson("tesla_fsd_daily.json"),
-        loadJson("tesla_fsd_monthly.json"),
         loadJson("hourly.json")
       ]);
 
@@ -610,7 +541,6 @@
       window.addEventListener("resize", () => {
         if (barChart) barChart.resize();
         if (lineChart) lineChart.resize();
-        if (teslaFsdChart) teslaFsdChart.resize();
         if (hourlyBarChart) hourlyBarChart.resize();
         if (hourlyRatioChart) hourlyRatioChart.resize();
       });
