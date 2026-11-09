@@ -1,6 +1,6 @@
 {
   "latest_month": "2026-11",
   "months": [],
-  "skipped_intervals": 12,
+  "skipped_intervals": 13,
   "note": "按有效采样时长加权；单次采样间隔超过 30 分钟的区间不纳入计算。"
 }
