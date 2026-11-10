@@ -1930,5 +1930,15 @@
     "ratio": 0.4222400303642144,
     "grab_assist_total": 17625610736,
     "grab_drive_total": 49127711600
+  },
+  {
+    "date": "2026-11-09",
+    "assist_total": 17662768424,
+    "drive_total": 49222706513,
+    "daily_assist": 37157688,
+    "daily_drive": 94994913,
+    "ratio": 0.39115450318902867,
+    "grab_assist_total": 17662768424,
+    "grab_drive_total": 49222706513
   }
 ]
